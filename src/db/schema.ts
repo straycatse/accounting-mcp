@@ -6,17 +6,15 @@ import { user } from "./auth-schema.js";
 
 export * from "./auth-schema.js";
 
-// Card-less trial + comp state, 1:1 with user. Deliberately separate from the
-// @better-auth/stripe subscription table: a trial exists before any Stripe
-// customer does. trialEndsAt is set once, at the user's first company
-// connection, and never re-granted.
+// Comp state, 1:1 with user. Trials live in Stripe (the subscription row's
+// `trialing` status), so this table only carries the escape hatch: accounts that
+// bypass billing entirely — marketplace/directory reviewers and our own.
 export const billingAccount = pgTable("billing_account", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: text("user_id")
     .notNull()
     .unique()
     .references(() => user.id, { onDelete: "cascade" }),
-  trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
   complimentary: boolean("complimentary").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })

@@ -59,8 +59,8 @@ export const metaTools: ToolDef[] = [
               subscribed: billing.subscriptionStatus !== null,
               subscriptionStatus: billing.subscriptionStatus,
               seats: billing.seats,
-              trialEndsAt: billing.trialEndsAt,
-              trialActive: billing.trialActive,
+              trialing: billing.trialing,
+              trialEnd: billing.trialEnd,
               complimentary: billing.complimentary,
               manageAt: `${config.BASE_URL}/dashboard`,
             }

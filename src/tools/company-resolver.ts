@@ -16,17 +16,20 @@ export async function resolveConnection(userId: string, companyId?: string): Pro
     .from(accountingConnection)
     .where(and(eq(accountingConnection.userId, userId), eq(accountingConnection.provider, "bokio")));
 
-  if (rows.length === 0) {
-    throw new Error(
-      `No Bokio company is connected. Ask the user to visit ${config.BASE_URL}/dashboard and click "Connect a Bokio company".`,
-    );
-  }
-
+  // Entitlement is checked before the "nothing connected" case on purpose:
+  // checkout gates the connect flow, so telling an unsubscribed user to go and
+  // connect a company would just bounce them back off /connect/bokio.
   const entitlement = await checkEntitlement(
     userId,
     rows.filter((r) => r.status === "active").length,
   );
   if (!entitlement.ok) throw new Error(entitlement.message);
+
+  if (rows.length === 0) {
+    throw new Error(
+      `No Bokio company is connected. Ask the user to visit ${config.BASE_URL}/dashboard and click "Connect a Bokio company".`,
+    );
+  }
 
   let connection: Connection | undefined;
   if (companyId) {

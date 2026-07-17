@@ -1,12 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { auth } from "./auth.js";
-import { getBillingState } from "../billing/entitlement.js";
+import { checkEntitlement, getBillingState } from "../billing/entitlement.js";
 import { config } from "../config.js";
 import { db } from "../db/index.js";
-import { accountingConnection, billingAccount } from "../db/schema.js";
+import { accountingConnection } from "../db/schema.js";
 import { encryptToken } from "../lib/crypto.js";
 import { exchangeAuthorizationCode } from "../bokio/oauth.js";
 import { bokioSettings } from "../bokio/settings.js";
@@ -19,12 +19,27 @@ async function requireSession(headers: Headers) {
   return session?.user ?? null;
 }
 
+async function activeConnectionCount(userId: string) {
+  const rows = await db
+    .select({ status: accountingConnection.status })
+    .from(accountingConnection)
+    .where(eq(accountingConnection.userId, userId));
+  return rows.filter((r) => r.status === "active").length;
+}
+
 export const connectBokio = new Hono();
 
 // Kick off Bokio's authorization-code flow for the signed-in user.
 connectBokio.get("/connect/bokio", async (c) => {
   const user = await requireSession(c.req.raw.headers);
   if (!user) return c.redirect("/sign-in");
+
+  // Checkout comes before connecting: no subscription (or trial), no connect.
+  // Seat availability for a *new* company is enforced in the callback, where we
+  // know which company was picked — re-authorizing an already-connected company
+  // must not require a spare seat.
+  const entitled = await checkEntitlement(user.id, await activeConnectionCount(user.id));
+  if (!entitled.ok) return c.redirect("/dashboard?billing=required");
 
   const state = randomUUID();
   setCookie(c, STATE_COOKIE, state, {
@@ -58,6 +73,26 @@ connectBokio.get("/connect/bokio/callback", async (c) => {
   }
 
   const tokens = await exchangeAuthorizationCode(code, redirectUri);
+
+  // Adding a new company consumes a seat; re-authorizing one we already hold
+  // (expired refresh token, widened scopes) does not. Refuse here rather than
+  // storing a connection that would push the user over their seat count and
+  // block the companies they already had working.
+  const [existing] = await db
+    .select({ id: accountingConnection.id })
+    .from(accountingConnection)
+    .where(
+      and(
+        eq(accountingConnection.userId, user.id),
+        eq(accountingConnection.provider, "bokio"),
+        eq(accountingConnection.tenantId, tokens.tenant_id),
+      ),
+    );
+  const activeCount = await activeConnectionCount(user.id);
+  const entitled = await checkEntitlement(user.id, existing ? activeCount : activeCount + 1);
+  if (!entitled.ok) {
+    return c.redirect(`/dashboard?billing=${entitled.reason === "seats_exceeded" ? "seats" : "required"}`);
+  }
 
   // Best effort: resolve the company name for a friendly dashboard/tool listing.
   let companyName: string | null = null;
@@ -94,14 +129,6 @@ connectBokio.get("/connect/bokio/callback", async (c) => {
       set: { ...values, updatedAt: new Date() },
     });
 
-  // First connection grants the one-time card-less trial; an existing billing
-  // row (however its trial stands) is never touched, so reconnecting or adding
-  // companies can't re-grant it.
-  await db
-    .insert(billingAccount)
-    .values({ userId: user.id, trialEndsAt: new Date(Date.now() + config.TRIAL_DAYS * 86_400_000) })
-    .onConflictDoNothing({ target: billingAccount.userId });
-
   return c.redirect("/dashboard");
 });
 
@@ -110,13 +137,16 @@ connectBokio.get("/api/billing", async (c) => {
   const user = await requireSession(c.req.raw.headers);
   if (!user) return c.json({ error: "unauthorized" }, 401);
   const state = await getBillingState(user.id);
-  const rows = await db
-    .select({ status: accountingConnection.status })
-    .from(accountingConnection)
-    .where(eq(accountingConnection.userId, user.id));
+  const activeConnections = await activeConnectionCount(user.id);
   return c.json({
     ...state,
-    activeConnections: rows.filter((r) => r.status === "active").length,
+    activeConnections,
+    // Connecting is allowed while a spare seat exists; complimentary accounts
+    // and disabled billing are unconstrained.
+    canConnect:
+      !state.billingEnabled ||
+      state.complimentary ||
+      (state.subscriptionStatus !== null && (state.seats ?? 1) > activeConnections),
   });
 });
 

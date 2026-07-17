@@ -113,6 +113,13 @@ console.log("6. MCP initialize ok, session:", sessionId);
 
 // 7. Call the ping tool
 const sse = { ...mcpHeaders, "mcp-session-id": sessionId, "MCP-Protocol-Version": "2025-06-18" };
+const callTool = async (name, args = {}, id = 100) => {
+  const r = await fetch(`${BASE}/mcp`, {
+    method: "POST", headers: sse,
+    body: JSON.stringify({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } }),
+  });
+  return r.text();
+};
 await fetch(`${BASE}/mcp`, {
   method: "POST", headers: sse,
   body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
@@ -133,6 +140,34 @@ res = await fetch(`${BASE}/mcp`, {
 });
 if (res.status !== 401) die("expected 401 without token, got " + res.status);
 console.log("8. unauthenticated re-use rejected (401)");
+
+// Billing-blocked mode: server booted with BILLING_ENABLED=true and this user
+// has no subscription, so checkout is required *before* connecting a company —
+// the connect flow must bounce to the dashboard rather than reach Bokio.
+if (process.env.E2E_BILLING_BLOCKED === "true") {
+  res = await fetch(`${BASE}/connect/bokio`, { redirect: "manual", headers: { cookie } });
+  const loc = res.headers.get("location") ?? "";
+  if (res.status !== 302 || !loc.includes("billing=required")) {
+    die(`connect should bounce to dashboard when unsubscribed (got ${res.status})`, loc);
+  }
+  if (loc.includes("/authorize")) die("connect reached Bokio despite no subscription", loc);
+  console.log("9. /connect/bokio blocked before checkout →", loc);
+
+  // Meta tools stay ungated so the user can always diagnose why they're stuck.
+  const statusText = await callTool("get_connection_status", {}, 6);
+  const flat = statusText.replace(/\\/g, "");
+  if (!/"subscribed": ?false/.test(flat)) die("get_connection_status should report unsubscribed", flat.slice(0, 300));
+  console.log("10. get_connection_status reports unsubscribed (ungated)");
+
+  // And a company tool must name the subscription as the blocker.
+  const toolText = await callTool("bokio_get_company_information", {}, 7);
+  if (!/free trial|requires a subscription/i.test(toolText)) {
+    die("expected subscription_required error from company tool", toolText.slice(0, 300));
+  }
+  console.log("11. company tools report subscription required");
+  console.log("\nALL OK (billing-blocked mode)");
+  process.exit(0);
+}
 
 // 9. Connect a Bokio company (mock): /connect/bokio → mock authorize → callback
 res = await fetch(`${BASE}/connect/bokio`, { redirect: "manual", headers: { cookie } });
@@ -163,13 +198,6 @@ if (!companiesText.includes("Testbolaget AB")) die("list_companies missing conne
 console.log("11. list_companies shows: Testbolaget AB");
 
 // 12. tools/list — write toggle must filter mutating tools from the listing
-const callTool = async (name, args = {}, id = 100) => {
-  const r = await fetch(`${BASE}/mcp`, {
-    method: "POST", headers: sse,
-    body: JSON.stringify({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } }),
-  });
-  return r.text();
-};
 res = await fetch(`${BASE}/mcp`, {
   method: "POST", headers: sse,
   body: JSON.stringify({ jsonrpc: "2.0", id: 5, method: "tools/list" }),
@@ -184,24 +212,6 @@ if (hasWrite !== writesEnabled) {
   die(`write-toggle mismatch: writesEnabled=${writesEnabled} but create tool ${hasWrite ? "present" : "absent"}`);
 }
 console.log(`12. tools/list ok (${toolNames.length} tools, writesEnabled=${writesEnabled})`);
-
-// Billing-blocked mode: server booted with BILLING_ENABLED=true TRIAL_DAYS=0 —
-// company tools must return the subscribe error while meta tools keep working
-// (list_companies already passed in step 11).
-if (process.env.E2E_BILLING_BLOCKED === "true") {
-  const blockedText = await callTool("bokio_get_company_information", {}, 7);
-  if (!/subscribe at|trial has ended|requires a subscription/i.test(blockedText)) {
-    die("expected billing gate to block tool call", blockedText.slice(0, 300));
-  }
-  console.log("13. billing gate blocks company tools (subscribe error returned)");
-  const statusText2 = await callTool("get_connection_status", {}, 8);
-  if (!/billingEnabled|subscribed|trialEndsAt/.test(statusText2.replace(/\\/g, ""))) {
-    die("get_connection_status missing billing info", statusText2.slice(0, 300));
-  }
-  console.log("14. get_connection_status reports billing state (ungated)");
-  console.log("\nALL OK (billing-blocked mode)");
-  process.exit(0);
-}
 
 // 13. Company information through the generated client
 const infoText = await callTool("bokio_get_company_information", {}, 7);

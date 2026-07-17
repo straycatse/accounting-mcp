@@ -10,7 +10,14 @@ import { db } from "../db/index.js";
 // The Stripe client is only exercised when BILLING_ENABLED=true; the placeholder
 // key keeps the plugin constructible (schema + routes) in dev/test without
 // Stripe credentials.
-const stripeClient = new Stripe(config.STRIPE_SECRET_KEY || "sk_test_placeholder");
+//
+// apiVersion is pinned so that upgrading the stripe SDK can't silently move the
+// API version underneath us (the SDK otherwise sends its own bundled default).
+// Webhook payloads are rendered with the *account's* version instead, so the
+// webhook endpoint in the Stripe dashboard must be pinned to this same version.
+const stripeClient = new Stripe(config.STRIPE_SECRET_KEY || "sk_test_placeholder", {
+  apiVersion: "2026-06-24.dahlia",
+});
 
 export const auth = betterAuth({
   baseURL: config.BASE_URL,
@@ -47,6 +54,10 @@ export const auth = betterAuth({
           {
             name: "standard",
             priceId: config.STRIPE_PRICE_ID || undefined,
+            // Stripe owns the trial: Checkout collects a card, the subscription
+            // starts in `trialing`, and it auto-converts on day TRIAL_DAYS.
+            // The plugin also enforces one trial per user across plans.
+            freeTrial: { days: config.TRIAL_DAYS },
           },
         ],
         // Swedish moms / EU B2B reverse charge: let Stripe Tax compute VAT and

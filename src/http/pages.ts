@@ -211,9 +211,21 @@ pages.get("/dashboard", (c) =>
         <h1>accounting-mcp</h1>
         <p id="who" class="muted">Checking session…</p>
         <div id="content" hidden>
+          <p class="error" id="banner"></p>
+          <div id="billing" hidden>
+            <h2 style="font-size:1.05rem">Subscription</h2>
+            <p id="billing-status" class="muted"></p>
+            <div class="row">
+              <button id="subscribe" hidden></button>
+              <button id="portal" hidden>Manage billing</button>
+            </div>
+            <p class="error" id="billing-error"></p>
+          </div>
+
           <h2 style="font-size:1.05rem">Connected companies</h2>
           <ul id="connections"><li class="muted">None yet.</li></ul>
-          <p><a href="/connect/bokio"><button>Connect a Bokio company</button></a></p>
+          <p><button id="connect-btn">Connect a Bokio company</button></p>
+          <p class="muted" id="connect-hint" hidden></p>
 
           <h2 style="font-size:1.05rem">Connect your AI assistant</h2>
           <p class="muted">Add this server as a custom connector (MCP) — sign-in happens in the
@@ -254,15 +266,6 @@ pages.get("/dashboard", (c) =>
             </div>
           </div>
 
-          <div id="billing" hidden>
-            <h2 style="font-size:1.05rem">Billing</h2>
-            <p id="billing-status" class="muted"></p>
-            <div class="row">
-              <button id="subscribe" hidden>Subscribe</button>
-              <button id="portal" hidden>Manage billing</button>
-            </div>
-            <p class="error" id="billing-error"></p>
-          </div>
         </div>
         <script>
           document.querySelectorAll("[data-copy]").forEach((btn) =>
@@ -293,43 +296,79 @@ pages.get("/dashboard", (c) =>
               button.disabled = false;
             }
           }
+          const connectBtn = document.getElementById("connect-btn");
+          connectBtn.addEventListener("click", () => (location.href = "/connect/bokio"));
+
           function renderBilling(b) {
-            if (!b || !b.billingEnabled) return;
+            // No billing info (endpoint failed): leave connect enabled — the
+            // server gate is authoritative and will redirect if it must.
+            if (!b) return;
+
+            const reason = new URLSearchParams(location.search).get("billing");
+            if (reason === "required") {
+              document.getElementById("banner").textContent =
+                "Start your free trial before connecting a company.";
+            } else if (reason === "seats") {
+              document.getElementById("banner").textContent =
+                "That company would need another seat — add one to your subscription first.";
+            }
+
+            // Connecting is gated server-side too; this only mirrors it in the UI.
+            const connectHint = document.getElementById("connect-hint");
+            if (!b.canConnect) {
+              connectBtn.disabled = true;
+              connectHint.hidden = false;
+              connectHint.textContent = b.subscriptionStatus
+                ? "All " + b.seats + (b.seats === 1 ? " seat is" : " seats are") +
+                  " in use — add a company to your subscription to connect another."
+                : "Start your free trial to connect a company.";
+            }
+
+            if (!b.billingEnabled) return;
             document.getElementById("billing").hidden = false;
             const status = document.getElementById("billing-status");
             const subscribeBtn = document.getElementById("subscribe");
             const portalBtn = document.getElementById("portal");
-            const seatsNeeded = Math.max(b.activeConnections, 1);
+
             if (b.complimentary) {
               status.textContent = "Complimentary account — no subscription needed.";
             } else if (b.subscriptionStatus) {
-              status.textContent =
-                "Subscribed (" + b.seats + (b.seats === 1 ? " company" : " companies") +
-                ", status: " + b.subscriptionStatus + ")";
               portalBtn.hidden = false;
-              if (b.seats < seatsNeeded) {
-                status.textContent += " — covers fewer companies than you have connected.";
-                subscribeBtn.textContent = "Update subscription (" + seatsNeeded + " companies)";
-                subscribeBtn.hidden = false;
+              const seats = b.seats + (b.seats === 1 ? " company" : " companies");
+              if (b.trialing && b.trialEnd) {
+                const days = Math.ceil((new Date(b.trialEnd) - Date.now()) / 86400000);
+                status.textContent =
+                  "Free trial — " + days + (days === 1 ? " day" : " days") + " left, then " +
+                  seats + " billed monthly (card on file).";
+              } else {
+                status.textContent = "Subscribed — " + seats + " (status: " + b.subscriptionStatus + ").";
               }
-            } else if (b.trialActive) {
-              const days = Math.ceil((new Date(b.trialEndsAt) - Date.now()) / 86400000);
-              status.textContent = "Free trial: " + days + (days === 1 ? " day" : " days") + " left.";
-              subscribeBtn.hidden = false;
+              if (!b.canConnect) {
+                subscribeBtn.textContent = "Add a company (" + (b.activeConnections + 1) + " total)";
+                subscribeBtn.hidden = false;
+                subscribeBtn.addEventListener("click", () =>
+                  billingAction("/api/auth/subscription/upgrade", {
+                    plan: "standard",
+                    seats: b.activeConnections + 1,
+                    successUrl: "/dashboard",
+                    cancelUrl: "/dashboard",
+                  }, subscribeBtn),
+                );
+              }
             } else {
-              status.textContent = b.trialEndsAt
-                ? "Your free trial has ended — subscribe to keep using accounting tools."
-                : "A subscription is required to use accounting tools.";
+              status.textContent =
+                "Start with a free trial — a card is required, and you are not charged until it ends.";
+              subscribeBtn.textContent = "Start free trial";
               subscribeBtn.hidden = false;
+              subscribeBtn.addEventListener("click", () =>
+                billingAction("/api/auth/subscription/upgrade", {
+                  plan: "standard",
+                  seats: 1,
+                  successUrl: "/dashboard",
+                  cancelUrl: "/dashboard",
+                }, subscribeBtn),
+              );
             }
-            subscribeBtn.addEventListener("click", () =>
-              billingAction("/api/auth/subscription/upgrade", {
-                plan: "standard",
-                seats: seatsNeeded,
-                successUrl: "/dashboard",
-                cancelUrl: "/dashboard",
-              }, subscribeBtn),
-            );
             portalBtn.addEventListener("click", () =>
               billingAction("/api/auth/subscription/billing-portal", { returnUrl: "/dashboard" }, portalBtn),
             );

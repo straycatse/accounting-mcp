@@ -6,8 +6,8 @@ import { checkEntitlement, getBillingState } from "../src/billing/entitlement.js
 
 vi.mock("../src/db/index.js", () => ({ db: { select: vi.fn() } }));
 
-type AccountRow = { trialEndsAt: Date | null; complimentary: boolean };
-type SubRow = { status: string; seats: number | null };
+type AccountRow = { complimentary: boolean };
+type SubRow = { status: string; seats: number | null; trialEnd: Date | null };
 
 function setDb({ account, subs = [] }: { account?: AccountRow; subs?: SubRow[] }) {
   (db.select as Mock).mockImplementation(() => ({
@@ -17,7 +17,11 @@ function setDb({ account, subs = [] }: { account?: AccountRow; subs?: SubRow[] }
   }));
 }
 
-const inDays = (d: number) => new Date(Date.now() + d * 86_400_000);
+const sub = (status: string, seats: number | null, trialEnd: Date | null = null): SubRow => ({
+  status,
+  seats,
+  trialEnd,
+});
 
 describe("checkEntitlement", () => {
   beforeEach(() => {
@@ -31,89 +35,100 @@ describe("checkEntitlement", () => {
     expect(db.select).not.toHaveBeenCalled();
   });
 
-  it("allows complimentary accounts regardless of trial or subscription", async () => {
-    setDb({ account: { trialEndsAt: inDays(-30), complimentary: true } });
+  it("allows complimentary accounts with no subscription at all", async () => {
+    setDb({ account: { complimentary: true } });
     expect((await checkEntitlement("u1", 3)).ok).toBe(true);
   });
 
-  it("allows during an active trial", async () => {
-    setDb({ account: { trialEndsAt: inDays(3), complimentary: false } });
-    expect((await checkEntitlement("u1", 1)).ok).toBe(true);
-  });
-
-  it("blocks after trial expiry with a dashboard pointer", async () => {
-    setDb({ account: { trialEndsAt: inDays(-1), complimentary: false } });
-    const result = await checkEntitlement("u1", 1);
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.reason).toBe("trial_expired");
-      expect(result.message).toContain(`${config.BASE_URL}/dashboard`);
-    }
-  });
-
-  it("blocks users who never had a trial and have no subscription", async () => {
+  it("blocks a user with no subscription and points at the trial", async () => {
     setDb({});
     const result = await checkEntitlement("u1", 1);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.reason).toBe("subscription_required");
+    if (!result.ok) {
+      expect(result.reason).toBe("subscription_required");
+      expect(result.message).toContain(`${config.BASE_URL}/dashboard`);
+      expect(result.message).toContain("free trial");
+    }
   });
 
-  it("allows an active subscription with enough seats, even after trial expiry", async () => {
-    setDb({
-      account: { trialEndsAt: inDays(-10), complimentary: false },
-      subs: [{ status: "active", seats: 2 }],
-    });
+  it("allows a Stripe-run trial (status trialing)", async () => {
+    setDb({ subs: [sub("trialing", 1, new Date(Date.now() + 5 * 86_400_000))] });
+    expect((await checkEntitlement("u1", 1)).ok).toBe(true);
+  });
+
+  it("allows an active subscription with enough seats", async () => {
+    setDb({ subs: [sub("active", 2)] });
     expect((await checkEntitlement("u1", 2)).ok).toBe(true);
   });
 
   it("treats null seats as covering one company", async () => {
-    setDb({ subs: [{ status: "active", seats: null }] });
+    setDb({ subs: [sub("active", null)] });
     expect((await checkEntitlement("u1", 1)).ok).toBe(true);
     const over = await checkEntitlement("u1", 2);
     expect(over.ok).toBe(false);
     if (!over.ok) expect(over.reason).toBe("seats_exceeded");
   });
 
-  it("blocks when connections exceed subscribed seats", async () => {
-    setDb({ subs: [{ status: "active", seats: 1 }] });
+  it("blocks when the requested company count exceeds seats", async () => {
+    setDb({ subs: [sub("active", 1)] });
     const result = await checkEntitlement("u1", 3);
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.reason).toBe("seats_exceeded");
-      expect(result.message).toContain("3 are connected");
+      expect(result.message).toContain("3 would be in use");
     }
   });
 
   it("grants a grace period for past_due subscriptions", async () => {
-    setDb({ subs: [{ status: "past_due", seats: 1 }] });
+    setDb({ subs: [sub("past_due", 1)] });
     expect((await checkEntitlement("u1", 1)).ok).toBe(true);
   });
 
+  it("does not count canceled subscriptions as covering", async () => {
+    setDb({ subs: [] }); // the query filters to covering statuses
+    expect((await checkEntitlement("u1", 1)).ok).toBe(false);
+  });
+
   it("picks the largest covering subscription when several exist", async () => {
-    setDb({
-      subs: [
-        { status: "trialing", seats: 1 },
-        { status: "active", seats: 4 },
-      ],
-    });
+    setDb({ subs: [sub("trialing", 1), sub("active", 4)] });
     expect((await checkEntitlement("u1", 4)).ok).toBe(true);
+  });
+
+  // The connect flow asks with count+1 for a new company: a 1-seat subscriber
+  // already using their seat must not be able to connect a second company.
+  it("refuses the seat a new company would need", async () => {
+    setDb({ subs: [sub("active", 1)] });
+    expect((await checkEntitlement("u1", 1)).ok).toBe(true); // existing company still fine
+    expect((await checkEntitlement("u1", 2)).ok).toBe(false); // adding a second is not
   });
 });
 
 describe("getBillingState", () => {
-  it("reports trial and subscription facts for status surfaces", async () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
     vi.spyOn(config, "BILLING_ENABLED", "get").mockReturnValue(true as never);
-    setDb({
-      account: { trialEndsAt: inDays(5), complimentary: false },
-      subs: [{ status: "active", seats: 2 }],
-    });
-    const state = await getBillingState("u1");
-    expect(state).toMatchObject({
+  });
+
+  it("reports a Stripe trial for status surfaces", async () => {
+    const trialEnd = new Date(Date.now() + 5 * 86_400_000);
+    setDb({ subs: [sub("trialing", 1, trialEnd)] });
+    expect(await getBillingState("u1")).toMatchObject({
       billingEnabled: true,
       complimentary: false,
-      trialActive: true,
-      subscriptionStatus: "active",
-      seats: 2,
+      subscriptionStatus: "trialing",
+      trialing: true,
+      trialEnd,
+      seats: 1,
+    });
+  });
+
+  it("reports no subscription for a fresh user", async () => {
+    setDb({});
+    expect(await getBillingState("u1")).toMatchObject({
+      subscriptionStatus: null,
+      trialing: false,
+      seats: null,
+      complimentary: false,
     });
   });
 });

@@ -1,0 +1,1 @@
+ALTER TABLE "billing_account" DROP COLUMN "trial_ends_at";
