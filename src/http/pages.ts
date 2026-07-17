@@ -23,6 +23,9 @@ const shell = (title: string, body: unknown) => html`<!doctype html>
     </head>
     <body>
       ${body}
+      <p class="muted" style="margin-top:3rem">
+        <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · Stray Cat AB
+      </p>
     </body>
   </html>`;
 
@@ -135,6 +138,61 @@ pages.get("/consent", (c) =>
   ),
 );
 
+pages.get("/terms", (c) =>
+  c.html(
+    shell(
+      "Terms of service",
+      html`
+        <h1>Terms of service</h1>
+        <p class="muted">accounting-mcp is operated by Stray Cat AB, Sweden.</p>
+        <ul>
+          <li>The service lets you connect your own accounting software (currently Bokio) to AI
+            assistants via the Model Context Protocol. You act on your own accounting data, on
+            your own instruction, under your own Bokio agreement.</li>
+          <li>After a free trial, continued use requires a paid subscription (price shown at
+            checkout, per connected company, excl. VAT). You can cancel any time; access remains
+            until the end of the paid period.</li>
+          <li>The service is provided as-is. Always review AI-initiated bookkeeping changes; you
+            are responsible for the correctness of your accounts.</li>
+          <li>Support: <a href="mailto:simon@straycat.se">simon@straycat.se</a></li>
+        </ul>
+        <p class="muted"><em>Svenska:</em> Tjänsten drivs av Stray Cat AB. Efter en gratis
+          provperiod krävs prenumeration (pris per anslutet företag, exkl. moms). Du ansvarar
+          själv för din bokföring — granska alltid ändringar som görs via AI.</p>
+      `,
+    ),
+  ),
+);
+
+pages.get("/privacy", (c) =>
+  c.html(
+    shell(
+      "Privacy policy",
+      html`
+        <h1>Privacy policy</h1>
+        <ul>
+          <li>We store your email, password hash, and the OAuth tokens needed to reach your
+            accounting provider. Provider tokens are encrypted at rest (AES-256-GCM).</li>
+          <li>Accounting data is fetched from your provider on demand when you (via your AI
+            assistant) request it, and passed through to your assistant. We do not store, resell,
+            or use your accounting data for any other purpose, including training.</li>
+          <li>A minimal audit log of tool activity (tool name, timestamp, success) is kept for
+            security and support.</li>
+          <li>Payments are processed by Stripe; we never see your card details.</li>
+          <li>Disconnecting a company or deleting your account removes the stored tokens. Data
+            controller: Stray Cat AB — contact
+            <a href="mailto:simon@straycat.se">simon@straycat.se</a> for access or deletion
+            requests (GDPR).</li>
+        </ul>
+        <p class="muted"><em>Svenska:</em> Vi lagrar endast det som krävs för att koppla din
+          bokföring till din AI-assistent. Tokens krypteras, bokföringsdata vidarebefordras bara
+          på din begäran och säljs aldrig vidare. Kontakta simon@straycat.se för
+          registerutdrag eller radering.</p>
+      `,
+    ),
+  ),
+);
+
 pages.get("/dashboard", (c) =>
   c.html(
     shell(
@@ -146,8 +204,78 @@ pages.get("/dashboard", (c) =>
           <h2 style="font-size:1.05rem">Connected companies</h2>
           <ul id="connections"><li class="muted">None yet.</li></ul>
           <p><a href="/connect/bokio"><button>Connect a Bokio company</button></a></p>
+          <div id="billing" hidden>
+            <h2 style="font-size:1.05rem">Billing</h2>
+            <p id="billing-status" class="muted"></p>
+            <div class="row">
+              <button id="subscribe" hidden>Subscribe</button>
+              <button id="portal" hidden>Manage billing</button>
+            </div>
+            <p class="error" id="billing-error"></p>
+          </div>
         </div>
         <script>
+          async function billingAction(path, body, button) {
+            button.disabled = true;
+            try {
+              const res = await fetch(path, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify(body),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (res.ok && data.url) {
+                location.href = data.url;
+                return;
+              }
+              document.getElementById("billing-error").textContent =
+                (data.message ?? data.error ?? "Billing request failed") + " (HTTP " + res.status + ")";
+            } finally {
+              button.disabled = false;
+            }
+          }
+          function renderBilling(b) {
+            if (!b || !b.billingEnabled) return;
+            document.getElementById("billing").hidden = false;
+            const status = document.getElementById("billing-status");
+            const subscribeBtn = document.getElementById("subscribe");
+            const portalBtn = document.getElementById("portal");
+            const seatsNeeded = Math.max(b.activeConnections, 1);
+            if (b.complimentary) {
+              status.textContent = "Complimentary account — no subscription needed.";
+            } else if (b.subscriptionStatus) {
+              status.textContent =
+                "Subscribed (" + b.seats + (b.seats === 1 ? " company" : " companies") +
+                ", status: " + b.subscriptionStatus + ")";
+              portalBtn.hidden = false;
+              if (b.seats < seatsNeeded) {
+                status.textContent += " — covers fewer companies than you have connected.";
+                subscribeBtn.textContent = "Update subscription (" + seatsNeeded + " companies)";
+                subscribeBtn.hidden = false;
+              }
+            } else if (b.trialActive) {
+              const days = Math.ceil((new Date(b.trialEndsAt) - Date.now()) / 86400000);
+              status.textContent = "Free trial: " + days + (days === 1 ? " day" : " days") + " left.";
+              subscribeBtn.hidden = false;
+            } else {
+              status.textContent = b.trialEndsAt
+                ? "Your free trial has ended — subscribe to keep using accounting tools."
+                : "A subscription is required to use accounting tools.";
+              subscribeBtn.hidden = false;
+            }
+            subscribeBtn.addEventListener("click", () =>
+              billingAction("/api/auth/subscription/upgrade", {
+                plan: "standard",
+                seats: seatsNeeded,
+                successUrl: "/dashboard",
+                cancelUrl: "/dashboard",
+              }, subscribeBtn),
+            );
+            portalBtn.addEventListener("click", () =>
+              billingAction("/api/auth/subscription/billing-portal", { returnUrl: "/dashboard" }, portalBtn),
+            );
+          }
           fetch("/api/auth/get-session", { credentials: "include" })
             .then((r) => (r.ok ? r.json() : null))
             .then((s) => {
@@ -157,6 +285,9 @@ pages.get("/dashboard", (c) =>
               }
               document.getElementById("who").textContent = "Signed in as " + s.user.email;
               document.getElementById("content").hidden = false;
+              fetch("/api/billing", { credentials: "include" })
+                .then((r) => (r.ok ? r.json() : null))
+                .then(renderBilling);
               return fetch("/api/connections", { credentials: "include" })
                 .then((r) => r.json())
                 .then(({ connections }) => {

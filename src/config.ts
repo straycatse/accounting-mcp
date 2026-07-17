@@ -41,6 +41,14 @@ const envSchema = z.object({
     ),
   BOKIO_ALLOW_WRITES: boolFromString,
   BOKIO_MOCK: boolFromString,
+  // Billing (Stripe via @better-auth/stripe). Off by default: everything is free
+  // until launch. When enabled, users get a card-less TRIAL_DAYS trial starting
+  // at their first company connection, then need an active subscription.
+  BILLING_ENABLED: boolFromString,
+  STRIPE_SECRET_KEY: z.string().default(""),
+  STRIPE_WEBHOOK_SECRET: z.string().default(""),
+  STRIPE_PRICE_ID: z.string().default(""),
+  TRIAL_DAYS: z.coerce.number().int().nonnegative().default(14),
   BINARY_MAX_BYTES: z.coerce.number().int().positive().default(4 * 1024 * 1024),
   AUDIT_LOG_PARAMS: boolFromString,
 });
@@ -56,6 +64,14 @@ function loadConfig(): Config {
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
   const config = parsed.data;
+  if (
+    config.BILLING_ENABLED &&
+    (!config.STRIPE_SECRET_KEY || !config.STRIPE_WEBHOOK_SECRET || !config.STRIPE_PRICE_ID)
+  ) {
+    console.warn(
+      "[config] BILLING_ENABLED=true but STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET/STRIPE_PRICE_ID are not all set — checkout and webhooks will fail until they are configured.",
+    );
+  }
   if (!config.BOKIO_MOCK && (!config.BOKIO_CLIENT_ID || !config.BOKIO_CLIENT_SECRET)) {
     console.warn(
       "[config] BOKIO_CLIENT_ID/BOKIO_CLIENT_SECRET are not set and BOKIO_MOCK=false — Bokio connections will fail until credentials are configured.",

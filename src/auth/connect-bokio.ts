@@ -3,9 +3,10 @@ import { Hono } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { eq } from "drizzle-orm";
 import { auth } from "./auth.js";
+import { getBillingState } from "../billing/entitlement.js";
 import { config } from "../config.js";
 import { db } from "../db/index.js";
-import { accountingConnection } from "../db/schema.js";
+import { accountingConnection, billingAccount } from "../db/schema.js";
 import { encryptToken } from "../lib/crypto.js";
 import { exchangeAuthorizationCode } from "../bokio/oauth.js";
 import { bokioSettings } from "../bokio/settings.js";
@@ -93,7 +94,30 @@ connectBokio.get("/connect/bokio/callback", async (c) => {
       set: { ...values, updatedAt: new Date() },
     });
 
+  // First connection grants the one-time card-less trial; an existing billing
+  // row (however its trial stands) is never touched, so reconnecting or adding
+  // companies can't re-grant it.
+  await db
+    .insert(billingAccount)
+    .values({ userId: user.id, trialEndsAt: new Date(Date.now() + config.TRIAL_DAYS * 86_400_000) })
+    .onConflictDoNothing({ target: billingAccount.userId });
+
   return c.redirect("/dashboard");
+});
+
+// Session-authenticated billing state for the dashboard page.
+connectBokio.get("/api/billing", async (c) => {
+  const user = await requireSession(c.req.raw.headers);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+  const state = await getBillingState(user.id);
+  const rows = await db
+    .select({ status: accountingConnection.status })
+    .from(accountingConnection)
+    .where(eq(accountingConnection.userId, user.id));
+  return c.json({
+    ...state,
+    activeConnections: rows.filter((r) => r.status === "active").length,
+  });
 });
 
 // Session-authenticated JSON for the dashboard page.

@@ -1,4 +1,5 @@
 import { and, eq } from "drizzle-orm";
+import { checkEntitlement } from "../billing/entitlement.js";
 import { config } from "../config.js";
 import { db } from "../db/index.js";
 import { accountingConnection } from "../db/schema.js";
@@ -20,6 +21,12 @@ export async function resolveConnection(userId: string, companyId?: string): Pro
       `No Bokio company is connected. Ask the user to visit ${config.BASE_URL}/dashboard and click "Connect a Bokio company".`,
     );
   }
+
+  const entitlement = await checkEntitlement(
+    userId,
+    rows.filter((r) => r.status === "active").length,
+  );
+  if (!entitlement.ok) throw new Error(entitlement.message);
 
   let connection: Connection | undefined;
   if (companyId) {

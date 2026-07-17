@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { getBillingState } from "../billing/entitlement.js";
 import { config } from "../config.js";
 import { db } from "../db/index.js";
 import { accountingConnection } from "../db/schema.js";
@@ -49,9 +50,21 @@ export const metaTools: ToolDef[] = [
         })
         .from(accountingConnection)
         .where(eq(accountingConnection.userId, ctx.userId));
+      const billing = await getBillingState(ctx.userId);
       return jsonResult({
         writesEnabled: config.BOKIO_ALLOW_WRITES,
         mockMode: config.BOKIO_MOCK,
+        billing: billing.billingEnabled
+          ? {
+              subscribed: billing.subscriptionStatus !== null,
+              subscriptionStatus: billing.subscriptionStatus,
+              seats: billing.seats,
+              trialEndsAt: billing.trialEndsAt,
+              trialActive: billing.trialActive,
+              complimentary: billing.complimentary,
+              manageAt: `${config.BASE_URL}/dashboard`,
+            }
+          : { billingEnabled: false },
         connections: rows,
       });
     },

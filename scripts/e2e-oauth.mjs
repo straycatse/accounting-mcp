@@ -185,6 +185,24 @@ if (hasWrite !== writesEnabled) {
 }
 console.log(`12. tools/list ok (${toolNames.length} tools, writesEnabled=${writesEnabled})`);
 
+// Billing-blocked mode: server booted with BILLING_ENABLED=true TRIAL_DAYS=0 —
+// company tools must return the subscribe error while meta tools keep working
+// (list_companies already passed in step 11).
+if (process.env.E2E_BILLING_BLOCKED === "true") {
+  const blockedText = await callTool("bokio_get_company_information", {}, 7);
+  if (!/subscribe at|trial has ended|requires a subscription/i.test(blockedText)) {
+    die("expected billing gate to block tool call", blockedText.slice(0, 300));
+  }
+  console.log("13. billing gate blocks company tools (subscribe error returned)");
+  const statusText2 = await callTool("get_connection_status", {}, 8);
+  if (!/billingEnabled|subscribed|trialEndsAt/.test(statusText2.replace(/\\/g, ""))) {
+    die("get_connection_status missing billing info", statusText2.slice(0, 300));
+  }
+  console.log("14. get_connection_status reports billing state (ungated)");
+  console.log("\nALL OK (billing-blocked mode)");
+  process.exit(0);
+}
+
 // 13. Company information through the generated client
 const infoText = await callTool("bokio_get_company_information", {}, 7);
 if (!infoText.includes("Testbolaget AB")) die("company-information failed", infoText);
