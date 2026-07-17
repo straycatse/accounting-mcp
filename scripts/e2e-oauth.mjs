@@ -1,7 +1,7 @@
 // End-to-end MCP OAuth flow test against http://localhost:3000
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
-const BASE = "http://localhost:3000";
+const BASE = (process.argv[2] ?? process.env.E2E_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
 const b64url = (buf) => buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const ORIGIN = { Origin: BASE };
 const die = (msg, extra) => { console.error("FAIL:", msg, extra ?? ""); process.exit(1); };
