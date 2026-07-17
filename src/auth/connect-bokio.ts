@@ -27,6 +27,76 @@ async function activeConnectionCount(userId: string) {
   return rows.filter((r) => r.status === "active").length;
 }
 
+// Seat check shared by both connect paths: adding a *new* company needs a spare
+// seat; re-connecting one already held (new OAuth grant, refreshed token) does
+// not. Returns the entitlement so each caller can format its own response.
+async function connectSeatCheck(userId: string, tenantId: string) {
+  const [existing] = await db
+    .select({ id: accountingConnection.id })
+    .from(accountingConnection)
+    .where(
+      and(
+        eq(accountingConnection.userId, userId),
+        eq(accountingConnection.provider, "bokio"),
+        eq(accountingConnection.tenantId, tenantId),
+      ),
+    );
+  const activeCount = await activeConnectionCount(userId);
+  return checkEntitlement(userId, existing ? activeCount : activeCount + 1);
+}
+
+// Best effort: resolve the company name for a friendly dashboard/tool listing.
+// A failure just leaves the name null; the connection still works.
+async function fetchCompanyName(tenantId: string, accessToken: string): Promise<string | null> {
+  try {
+    const res = await fetch(`${bokioSettings.apiBaseUrl}/companies/${tenantId}/company-information`, {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    });
+    if (res.ok) {
+      const body = (await res.json()) as { companyInformation?: { name?: string } };
+      return body.companyInformation?.name ?? null;
+    }
+  } catch {
+    // fall through
+  }
+  return null;
+}
+
+interface ConnectionInput {
+  userId: string;
+  authType: "oauth" | "integration_token";
+  tenantId: string;
+  externalConnectionId: string | null;
+  companyName: string | null;
+  accessToken: string;
+  refreshToken: string | null;
+  accessTokenExpiresAt: Date;
+  scopes: string | null;
+}
+
+async function upsertConnection(input: ConnectionInput) {
+  const values = {
+    userId: input.userId,
+    provider: "bokio" as const,
+    authType: input.authType,
+    tenantId: input.tenantId,
+    externalConnectionId: input.externalConnectionId,
+    companyName: input.companyName,
+    accessTokenEnc: encryptToken(input.accessToken),
+    refreshTokenEnc: input.refreshToken ? encryptToken(input.refreshToken) : null,
+    accessTokenExpiresAt: input.accessTokenExpiresAt,
+    scopes: input.scopes,
+    status: "active" as const,
+  };
+  await db
+    .insert(accountingConnection)
+    .values(values)
+    .onConflictDoUpdate({
+      target: [accountingConnection.userId, accountingConnection.provider, accountingConnection.tenantId],
+      set: { ...values, updatedAt: new Date() },
+    });
+}
+
 export const connectBokio = new Hono();
 
 // Kick off Bokio's authorization-code flow for the signed-in user.
@@ -74,62 +144,102 @@ connectBokio.get("/connect/bokio/callback", async (c) => {
 
   const tokens = await exchangeAuthorizationCode(code, redirectUri);
 
-  // Adding a new company consumes a seat; re-authorizing one we already hold
-  // (expired refresh token, widened scopes) does not. Refuse here rather than
-  // storing a connection that would push the user over their seat count and
-  // block the companies they already had working.
-  const [existing] = await db
-    .select({ id: accountingConnection.id })
-    .from(accountingConnection)
-    .where(
-      and(
-        eq(accountingConnection.userId, user.id),
-        eq(accountingConnection.provider, "bokio"),
-        eq(accountingConnection.tenantId, tokens.tenant_id),
-      ),
-    );
-  const activeCount = await activeConnectionCount(user.id);
-  const entitled = await checkEntitlement(user.id, existing ? activeCount : activeCount + 1);
+  const entitled = await connectSeatCheck(user.id, tokens.tenant_id);
   if (!entitled.ok) {
     return c.redirect(`/dashboard?billing=${entitled.reason === "seats_exceeded" ? "seats" : "required"}`);
   }
 
-  // Best effort: resolve the company name for a friendly dashboard/tool listing.
-  let companyName: string | null = null;
-  try {
-    const res = await fetch(
-      `${bokioSettings.apiBaseUrl}/companies/${tokens.tenant_id}/company-information`,
-      { headers: { Authorization: `Bearer ${tokens.access_token}`, Accept: "application/json" } },
-    );
-    if (res.ok) {
-      const body = (await res.json()) as { companyInformation?: { name?: string } };
-      companyName = body.companyInformation?.name ?? null;
-    }
-  } catch {
-    // name stays null; connection still works
-  }
+  const companyName = await fetchCompanyName(tokens.tenant_id, tokens.access_token);
 
-  const values = {
+  await upsertConnection({
     userId: user.id,
-    provider: "bokio" as const,
+    authType: "oauth",
     tenantId: tokens.tenant_id,
     externalConnectionId: tokens.connection_id ?? null,
     companyName,
-    accessTokenEnc: encryptToken(tokens.access_token),
-    refreshTokenEnc: tokens.refresh_token ? encryptToken(tokens.refresh_token) : null,
+    accessToken: tokens.access_token,
+    refreshToken: tokens.refresh_token ?? null,
     accessTokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
     scopes: config.BOKIO_SCOPES,
-    status: "active" as const,
-  };
-  await db
-    .insert(accountingConnection)
-    .values(values)
-    .onConflictDoUpdate({
-      target: [accountingConnection.userId, accountingConnection.provider, accountingConnection.tenantId],
-      set: { ...values, updatedAt: new Date() },
-    });
+  });
 
   return c.redirect("/dashboard");
+});
+
+// Connect a single company directly with a Bokio *private integration* token
+// (Bokio company settings → API Tokens → Create Private Integration). No OAuth,
+// no marketplace review — the token is a long-lived bearer for that one company.
+connectBokio.post("/connect/bokio/token", async (c) => {
+  const user = await requireSession(c.req.raw.headers);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    integrationToken?: string;
+    companyId?: string;
+  };
+  const integrationToken = body.integrationToken?.trim();
+  const companyId = body.companyId?.trim();
+  if (!integrationToken || !companyId) {
+    return c.json({ error: "missing_fields", message: "Both integrationToken and companyId are required." }, 400);
+  }
+
+  const entitled = await connectSeatCheck(user.id, companyId);
+  if (!entitled.ok) return c.json({ error: entitled.reason, message: entitled.message }, 402);
+
+  // Validate the token + companyId against the live API, which also gives us the
+  // company name. A non-2xx here means the pair is wrong or the token is revoked.
+  let companyName: string | null = null;
+  try {
+    const res = await fetch(`${bokioSettings.apiBaseUrl}/companies/${companyId}/company-information`, {
+      headers: { Authorization: `Bearer ${integrationToken}`, Accept: "application/json" },
+    });
+    if (!res.ok) {
+      return c.json(
+        {
+          error: "invalid_token",
+          message: `Bokio rejected that token and company ID (HTTP ${res.status}). Check both and try again.`,
+        },
+        400,
+      );
+    }
+    const info = (await res.json()) as { companyInformation?: { name?: string } };
+    companyName = info.companyInformation?.name ?? null;
+  } catch {
+    return c.json({ error: "unreachable", message: "Could not reach Bokio to validate the token." }, 502);
+  }
+
+  await upsertConnection({
+    userId: user.id,
+    authType: "integration_token",
+    tenantId: companyId,
+    externalConnectionId: null,
+    companyName,
+    accessToken: integrationToken,
+    refreshToken: null,
+    // Private integration tokens don't expire on a fixed schedule and can't be
+    // refreshed; a far-future value keeps the not-null column honest while the
+    // token-manager's authType branch bypasses expiry entirely.
+    accessTokenExpiresAt: new Date("2999-01-01T00:00:00Z"),
+    scopes: null,
+  });
+
+  return c.json({ ok: true, companyName, companyId });
+});
+
+// Remove a connected company. Scoped to the calling user's own rows.
+connectBokio.post("/connect/bokio/disconnect", async (c) => {
+  const user = await requireSession(c.req.raw.headers);
+  if (!user) return c.json({ error: "unauthorized" }, 401);
+
+  const { id } = (await c.req.json().catch(() => ({}))) as { id?: string };
+  if (!id) return c.json({ error: "missing_id" }, 400);
+
+  const deleted = await db
+    .delete(accountingConnection)
+    .where(and(eq(accountingConnection.id, id), eq(accountingConnection.userId, user.id)))
+    .returning({ id: accountingConnection.id });
+  if (deleted.length === 0) return c.json({ error: "not_found" }, 404);
+  return c.json({ ok: true });
 });
 
 // Session-authenticated billing state for the dashboard page.
@@ -158,6 +268,7 @@ connectBokio.get("/api/connections", async (c) => {
     .select({
       id: accountingConnection.id,
       provider: accountingConnection.provider,
+      authType: accountingConnection.authType,
       tenantId: accountingConnection.tenantId,
       companyName: accountingConnection.companyName,
       status: accountingConnection.status,

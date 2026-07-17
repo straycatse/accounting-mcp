@@ -45,6 +45,12 @@ export const accountingConnection = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     provider: text("provider").notNull(), // 'bokio' (Fortnox/Visma later)
+    // How the token was obtained. 'oauth' = authorization-code flow (public
+    // marketplace app, refreshable). 'integration_token' = a Bokio private
+    // integration token, pasted by the user — long-lived, no refresh.
+    authType: text("auth_type", { enum: ["oauth", "integration_token"] })
+      .notNull()
+      .default("oauth"),
     tenantId: text("tenant_id").notNull(), // provider's company id
     externalConnectionId: text("external_connection_id"), // Bokio connection_id from token response
     companyName: text("company_name"),

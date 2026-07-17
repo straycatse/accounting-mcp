@@ -134,6 +134,13 @@ export const authCodes = new Map<string, AuthCode>();
 export const accessTokens = new Map<string, { tenantId: string; expiresAt: number }>();
 export const refreshTokens = new Map<string, { tenantId: string }>();
 
+// Static per-company private integration tokens (no OAuth), mirroring Bokio's
+// "Create Private Integration" tokens: a long-lived bearer for one company.
+// Test/dev can paste `mock-pi-<companyId>` to exercise the token connect flow.
+export const integrationTokens = new Map<string, string>(
+  companies.map((company) => [`mock-pi-${company.id}`, company.id]),
+);
+
 // Short expiry (seconds) can be forced via env to exercise refresh logic in tests.
 export const mockAccessTokenTtl = () =>
   process.env.BOKIO_MOCK_TOKEN_TTL ? Number(process.env.BOKIO_MOCK_TOKEN_TTL) : 3600;
@@ -161,6 +168,10 @@ export function resolveBearer(header: string | undefined): MockCompany | null {
   const token = header?.startsWith("Bearer ") ? header.slice(7) : undefined;
   if (!token) return null;
   const entry = accessTokens.get(token);
-  if (!entry || entry.expiresAt < Date.now()) return null;
-  return companies.find((c) => c.id === entry.tenantId) ?? null;
+  if (entry && entry.expiresAt >= Date.now()) {
+    return companies.find((c) => c.id === entry.tenantId) ?? null;
+  }
+  const piTenant = integrationTokens.get(token);
+  if (piTenant) return companies.find((c) => c.id === piTenant) ?? null;
+  return null;
 }

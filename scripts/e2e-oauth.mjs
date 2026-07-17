@@ -242,4 +242,20 @@ if (!writesEnabled) {
   console.log("16. bokio_create_invoice ok (writes enabled)");
 }
 
+// 17. Connect a SECOND company via a private integration token (no OAuth), then
+// call a tool against it by companyId — proving the token-manager's no-refresh
+// path serves tools. (Billing is off in this run, so seats don't gate it.)
+const secondCompany = "22222222-2222-4222-8222-222222222222";
+res = await fetch(`${BASE}/connect/bokio/token`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json", cookie, Origin: BASE },
+  body: JSON.stringify({ integrationToken: `mock-pi-${secondCompany}`, companyId: secondCompany }),
+});
+if (!res.ok) die("token connect failed", await res.text());
+const listAfter = await callTool("list_companies", {}, 11);
+if (!listAfter.includes("Demo Consulting HB")) die("token-connected company missing", listAfter);
+const infoByCompany = await callTool("bokio_get_company_information", { companyId: secondCompany }, 12);
+if (!infoByCompany.includes("Demo Consulting HB")) die("tool call via integration token failed", infoByCompany);
+console.log("17. private-integration-token company works through MCP (Demo Consulting HB)");
+
 console.log("\nALL OK");

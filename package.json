@@ -17,7 +17,8 @@
     "gen:bokio": "openapi-typescript specs/company-api.yaml -o src/bokio/generated/company.d.ts && openapi-typescript specs/general-api.yaml -o src/bokio/generated/general.d.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "e2e:oauth": "node scripts/e2e-oauth.mjs"
+    "e2e:oauth": "node scripts/e2e-oauth.mjs",
+    "e2e:token": "node scripts/e2e-token-connect.mjs"
   },
   "dependencies": {
     "@better-auth/oauth-provider": "^1.6.23",

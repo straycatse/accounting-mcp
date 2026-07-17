@@ -224,8 +224,25 @@ pages.get("/dashboard", (c) =>
 
           <h2 style="font-size:1.05rem">Connected companies</h2>
           <ul id="connections"><li class="muted">None yet.</li></ul>
-          <p><button id="connect-btn">Connect a Bokio company</button></p>
-          <p class="muted" id="connect-hint" hidden></p>
+
+          <div class="card">
+            <h3>Connect via Bokio (OAuth)</h3>
+            <p class="muted">Authorize in Bokio's own consent screen. Requires our public Bokio
+              app — available once approved on the Bokio marketplace.</p>
+            <button id="connect-btn">Connect a Bokio company</button>
+            <p class="muted" id="connect-hint" hidden></p>
+          </div>
+          <div class="card">
+            <h3>Connect with a private integration token</h3>
+            <p class="muted">Works today with your own company — no marketplace review. In Bokio:
+              <em>Settings → API Tokens → Create Private Integration</em>, then paste the token and
+              your company ID (the GUID in your Bokio URL) below.</p>
+            <label>Integration token <input id="pi-token" type="password" autocomplete="off" /></label>
+            <label>Company ID <input id="pi-company" autocomplete="off"
+              placeholder="00000000-0000-0000-0000-000000000000" /></label>
+            <button id="pi-connect">Connect with token</button>
+            <p class="error" id="pi-error"></p>
+          </div>
 
           <h2 style="font-size:1.05rem">Connect your AI assistant</h2>
           <p class="muted">Add this server as a custom connector (MCP) — sign-in happens in the
@@ -375,6 +392,79 @@ pages.get("/dashboard", (c) =>
               billingAction("/api/auth/subscription/billing-portal", { returnUrl: "/dashboard" }, portalBtn),
             );
           }
+          async function loadConnections() {
+            const list = document.getElementById("connections");
+            const { connections } = await fetch("/api/connections", { credentials: "include" }).then((r) => r.json());
+            if (!connections || connections.length === 0) {
+              list.innerHTML = '<li class="muted">None yet.</li>';
+              return;
+            }
+            list.innerHTML = "";
+            for (const conn of connections) {
+              const li = document.createElement("li");
+              const how = conn.authType === "integration_token" ? "private token" : "oauth";
+              const label = document.createElement("span");
+              label.textContent =
+                (conn.companyName ?? conn.tenantId) + " — " + how + " (" + conn.status + ") ";
+              const btn = document.createElement("button");
+              btn.textContent = "Remove";
+              btn.style.marginTop = "0";
+              btn.style.padding = "0.15rem 0.5rem";
+              btn.addEventListener("click", async () => {
+                if (!confirm("Remove " + (conn.companyName ?? conn.tenantId) + "?")) return;
+                btn.disabled = true;
+                const res = await fetch("/connect/bokio/disconnect", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  credentials: "include",
+                  body: JSON.stringify({ id: conn.id }),
+                });
+                if (res.ok) { loadConnections(); refreshBilling(); }
+                else { btn.disabled = false; alert("Could not remove (HTTP " + res.status + ")"); }
+              });
+              li.appendChild(label);
+              li.appendChild(btn);
+              list.appendChild(li);
+            }
+          }
+          function refreshBilling() {
+            fetch("/api/billing", { credentials: "include" })
+              .then((r) => (r.ok ? r.json() : null))
+              .then(renderBilling);
+          }
+
+          document.getElementById("pi-connect").addEventListener("click", async () => {
+            const btn = document.getElementById("pi-connect");
+            const err = document.getElementById("pi-error");
+            err.textContent = "";
+            const integrationToken = document.getElementById("pi-token").value.trim();
+            const companyId = document.getElementById("pi-company").value.trim();
+            if (!integrationToken || !companyId) {
+              err.textContent = "Enter both the integration token and the company ID.";
+              return;
+            }
+            btn.disabled = true;
+            try {
+              const res = await fetch("/connect/bokio/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ integrationToken, companyId }),
+              });
+              const data = await res.json().catch(() => ({}));
+              if (res.ok) {
+                document.getElementById("pi-token").value = "";
+                document.getElementById("pi-company").value = "";
+                loadConnections();
+                refreshBilling();
+              } else {
+                err.textContent = (data.message ?? data.error ?? "Failed") + " (HTTP " + res.status + ")";
+              }
+            } finally {
+              btn.disabled = false;
+            }
+          });
+
           fetch("/api/auth/get-session", { credentials: "include" })
             .then((r) => (r.ok ? r.json() : null))
             .then((s) => {
@@ -384,22 +474,8 @@ pages.get("/dashboard", (c) =>
               }
               document.getElementById("who").textContent = "Signed in as " + s.user.email;
               document.getElementById("content").hidden = false;
-              fetch("/api/billing", { credentials: "include" })
-                .then((r) => (r.ok ? r.json() : null))
-                .then(renderBilling);
-              return fetch("/api/connections", { credentials: "include" })
-                .then((r) => r.json())
-                .then(({ connections }) => {
-                  if (!connections || connections.length === 0) return;
-                  document.getElementById("connections").innerHTML = connections
-                    .map(
-                      (conn) =>
-                        "<li>" +
-                        (conn.companyName ?? conn.tenantId).replace(/[<>&]/g, "") +
-                        " — <code>" + conn.provider + "</code> (" + conn.status + ")</li>",
-                    )
-                    .join("");
-                });
+              refreshBilling();
+              loadConnections();
             });
         </script>
       `,

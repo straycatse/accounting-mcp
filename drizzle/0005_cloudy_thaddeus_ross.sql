@@ -1,0 +1,1 @@
+ALTER TABLE "accounting_connection" ADD COLUMN "auth_type" text DEFAULT 'oauth' NOT NULL;

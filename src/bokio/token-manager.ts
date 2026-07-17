@@ -55,6 +55,11 @@ function refreshWithLock(connection: Connection): Promise<string> {
 
 /** Returns a valid access token, refreshing proactively when near expiry. */
 export async function getValidAccessToken(connection: Connection): Promise<string> {
+  // Private integration tokens are long-lived and have no refresh flow — use
+  // the stored token as-is (a revoked one surfaces as a 401 handled below).
+  if (connection.authType === "integration_token") {
+    return decryptToken(connection.accessTokenEnc);
+  }
   if (connection.accessTokenExpiresAt.getTime() - Date.now() > REFRESH_MARGIN_MS) {
     return decryptToken(connection.accessTokenEnc);
   }
@@ -63,6 +68,18 @@ export async function getValidAccessToken(connection: Connection): Promise<strin
 
 /** Reactive path: the API returned 401 despite a seemingly valid token. */
 export async function forceRefreshAccessToken(connection: Connection): Promise<string> {
+  // A private integration token can't be refreshed; a 401 means it was revoked
+  // or regenerated in Bokio. Mark it and tell the user to reconnect.
+  if (connection.authType === "integration_token") {
+    await db
+      .update(accountingConnection)
+      .set({ status: "refresh_failed", updatedAt: new Date() })
+      .where(eq(accountingConnection.id, connection.id));
+    throw new Error(
+      `Bokio rejected the integration token for ${connection.companyName ?? connection.tenantId}. ` +
+        `The user must create a new private integration token in Bokio and reconnect from the dashboard.`,
+    );
+  }
   // Re-read the row first: another concurrent call may have already rotated it.
   const [fresh] = await db
     .select()
