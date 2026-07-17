@@ -23,12 +23,15 @@ const envSchema = z.object({
   BOKIO_CLIENT_SECRET: z.string().default(""),
   BOKIO_AUTH_BASE_URL: z.string().url().default("https://api.bokio.se/v1"),
   BOKIO_API_BASE_URL: z.string().url().default("https://api.bokio.se/v1"),
-  // Scope names as documented per-operation in specs/company-api.yaml
+  // Scope names as documented per-operation in specs/company-api.yaml.
+  // bank-payments:* are "elevated" scopes that Bokio must approve per
+  // integration — request approval in the developer portal, then add them
+  // back via the BOKIO_SCOPES env var.
   BOKIO_SCOPES: z
     .string()
     .default(
       [
-        "bank-payments:read-limited bank-payments:write chart-of-accounts:read",
+        "chart-of-accounts:read",
         "company-information:read credit-notes:read credit-notes:write",
         "customers:read customers:write fiscal-years:read invoices:read invoices:write",
         "items:read items:write journal-entries:read journal-entries:write sie:read",
