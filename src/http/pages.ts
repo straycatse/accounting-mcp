@@ -1,5 +1,8 @@
 import { Hono } from "hono";
 import { html } from "hono/html";
+import { config } from "../config.js";
+
+const mcpUrl = `${config.BASE_URL}/mcp`;
 
 const shell = (title: string, body: unknown) => html`<!doctype html>
   <html lang="en">
@@ -17,6 +20,13 @@ const shell = (title: string, body: unknown) => html`<!doctype html>
         .muted { color: gray; font-size: 0.85rem; }
         .error { color: #c0392b; margin-top: 0.8rem; min-height: 1.2em; }
         .row { display: flex; gap: 0.8rem; }
+        .card { border: 1px solid rgba(128,128,128,.35); border-radius: 8px; padding: 0.7rem 0.9rem; margin-top: 0.7rem; }
+        .card h3 { margin: 0 0 0.3rem; font-size: 0.95rem; }
+        .card p { margin: 0.3rem 0; font-size: 0.85rem; }
+        .card a button, .card button { margin-top: 0.4rem; padding: 0.35rem 0.8rem; font-size: 0.85rem; }
+        .copy-row { display: flex; gap: 0.5rem; align-items: center; margin: 0.5rem 0; }
+        .copy-row code { flex: 1; overflow-x: auto; white-space: nowrap; padding: 0.4rem; }
+        .copy-row button { margin-top: 0; padding: 0.35rem 0.8rem; font-size: 0.85rem; flex-shrink: 0; }
         code { background: rgba(128,128,128,.15); padding: 0.1em 0.3em; border-radius: 3px; }
         ul { padding-left: 1.2rem; }
       </style>
@@ -204,6 +214,46 @@ pages.get("/dashboard", (c) =>
           <h2 style="font-size:1.05rem">Connected companies</h2>
           <ul id="connections"><li class="muted">None yet.</li></ul>
           <p><a href="/connect/bokio"><button>Connect a Bokio company</button></a></p>
+
+          <h2 style="font-size:1.05rem">Connect your AI assistant</h2>
+          <p class="muted">Add this server as a custom connector (MCP) — sign-in happens in the
+            browser when the assistant first connects:</p>
+          <div class="copy-row">
+            <code>${mcpUrl}</code>
+            <button data-copy="${mcpUrl}">Copy</button>
+          </div>
+          <div class="card">
+            <h3>Claude</h3>
+            <p>Settings → Connectors → <em>Add custom connector</em>, paste the URL above.</p>
+            <a href="https://claude.ai/settings/connectors" target="_blank" rel="noopener"><button>Open Claude settings</button></a>
+            <p class="muted">Claude Code:</p>
+            <div class="copy-row">
+              <code>claude mcp add --transport http accounting ${mcpUrl}</code>
+              <button data-copy="claude mcp add --transport http accounting ${mcpUrl}">Copy</button>
+            </div>
+          </div>
+          <div class="card">
+            <h3>ChatGPT</h3>
+            <p>Requires developer mode (Pro/Team/Enterprise): Settings → Connectors →
+              <em>Advanced settings</em> → enable <em>Developer mode</em>, then
+              <em>Create</em> a connector with the URL above.</p>
+            <a href="https://chatgpt.com/#settings/Connectors" target="_blank" rel="noopener"><button>Open ChatGPT settings</button></a>
+          </div>
+          <div class="card">
+            <h3>Perplexity</h3>
+            <p>Settings → Connectors → <em>Add connector</em> → Remote, paste the URL above and
+              choose OAuth authentication.</p>
+            <a href="https://www.perplexity.ai/help-center/en/articles/13915507-adding-custom-remote-connectors" target="_blank" rel="noopener"><button>Open Perplexity guide</button></a>
+          </div>
+          <div class="card">
+            <h3>Gemini</h3>
+            <p>The Gemini web app doesn't support custom MCP connectors yet — use Gemini CLI:</p>
+            <div class="copy-row">
+              <code>gemini mcp add --transport http accounting ${mcpUrl}</code>
+              <button data-copy="gemini mcp add --transport http accounting ${mcpUrl}">Copy</button>
+            </div>
+          </div>
+
           <div id="billing" hidden>
             <h2 style="font-size:1.05rem">Billing</h2>
             <p id="billing-status" class="muted"></p>
@@ -215,6 +265,14 @@ pages.get("/dashboard", (c) =>
           </div>
         </div>
         <script>
+          document.querySelectorAll("[data-copy]").forEach((btn) =>
+            btn.addEventListener("click", () => {
+              navigator.clipboard.writeText(btn.getAttribute("data-copy")).then(() => {
+                btn.textContent = "Copied!";
+                setTimeout(() => (btn.textContent = "Copy"), 1500);
+              });
+            }),
+          );
           async function billingAction(path, body, button) {
             button.disabled = true;
             try {
