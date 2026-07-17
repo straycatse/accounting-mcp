@@ -119,10 +119,12 @@ pages.get("/consent", (c) =>
               body: JSON.stringify({ accept, oauth_query: location.search.slice(1) }),
             });
             const data = await res.json().catch(() => ({}));
-            if (res.ok && data.redirect_uri) {
-              location.href = data.redirect_uri;
+            if (res.ok && (data.redirect_uri || data.url)) {
+              location.href = data.redirect_uri ?? data.url;
             } else {
-              document.getElementById("error").textContent = data.message ?? "Consent failed";
+              document.getElementById("error").textContent =
+                (data.error_description ?? data.message ?? data.error ?? "Consent failed") +
+                " (HTTP " + res.status + ")";
             }
           }
           document.getElementById("approve").addEventListener("click", () => respond(true));
