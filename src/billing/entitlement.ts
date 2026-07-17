@@ -4,9 +4,11 @@ import { db } from "../db/index.js";
 import { billingAccount, subscription } from "../db/schema.js";
 
 // Subscription statuses that grant access. `trialing` is the Stripe-run free
-// trial (card already on file, converts automatically). `past_due` is a grace
-// period: Stripe is retrying payment and will move the subscription to
-// canceled/unpaid itself if recovery fails.
+// trial (no card required). `past_due` is a grace period: Stripe is retrying a
+// real card and will move the subscription on itself if recovery fails — a
+// trial that lapses without a card never lands here, it goes straight to
+// `canceled` (see trial_settings in auth.ts). Everything else — canceled,
+// paused, unpaid, incomplete — is not covering.
 const COVERING_STATUSES = ["active", "trialing", "past_due"];
 
 export interface BillingState {

@@ -54,9 +54,10 @@ export const auth = betterAuth({
           {
             name: "standard",
             priceId: config.STRIPE_PRICE_ID || undefined,
-            // Stripe owns the trial: Checkout collects a card, the subscription
-            // starts in `trialing`, and it auto-converts on day TRIAL_DAYS.
-            // The plugin also enforces one trial per user across plans.
+            // Stripe owns the trial: the subscription starts in `trialing` and
+            // converts on day TRIAL_DAYS. No card is collected up front (see
+            // payment_method_collection below). The plugin only grants this to
+            // users who have never had a trial.
             freeTrial: { days: config.TRIAL_DAYS },
           },
         ],
@@ -70,6 +71,19 @@ export const auth = betterAuth({
             billing_address_collection: "required",
             customer_update: { address: "auto", name: "auto" },
             locale: "sv",
+            // Start the trial without a card. `if_required` still collects one
+            // on any checkout that isn't a trial (e.g. subscribing after a
+            // lapsed trial, or adding a company), so only the trial is free of
+            // that friction.
+            payment_method_collection: "if_required",
+            subscription_data: {
+              // Without this, Stripe's default is `create_invoice`, which lands
+              // a card-less trial in `past_due` — a status our entitlement
+              // treats as a payment-retry grace period, i.e. it would keep
+              // serving someone who never paid. `cancel` ends it cleanly, and
+              // the plugin won't grant a second trial afterwards.
+              trial_settings: { end_behavior: { missing_payment_method: "cancel" } },
+            },
           },
         }),
       },

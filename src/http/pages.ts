@@ -338,8 +338,9 @@ pages.get("/dashboard", (c) =>
               if (b.trialing && b.trialEnd) {
                 const days = Math.ceil((new Date(b.trialEnd) - Date.now()) / 86400000);
                 status.textContent =
-                  "Free trial — " + days + (days === 1 ? " day" : " days") + " left, then " +
-                  seats + " billed monthly (card on file).";
+                  "Free trial — " + days + (days === 1 ? " day" : " days") + " left. " +
+                  "Add a payment method before it ends to continue with " + seats + "; " +
+                  "otherwise the subscription simply ends.";
               } else {
                 status.textContent = "Subscribed — " + seats + " (status: " + b.subscriptionStatus + ").";
               }
@@ -357,7 +358,8 @@ pages.get("/dashboard", (c) =>
               }
             } else {
               status.textContent =
-                "Start with a free trial — a card is required, and you are not charged until it ends.";
+                "Start with a free trial — no card required. Add a payment method before it " +
+                "ends to keep your companies connected.";
               subscribeBtn.textContent = "Start free trial";
               subscribeBtn.hidden = false;
               subscribeBtn.addEventListener("click", () =>
