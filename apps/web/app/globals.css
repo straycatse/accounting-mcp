@@ -1,0 +1,96 @@
+/* Ported from the old server-rendered shell() styles in apps/api pages.ts. */
+:root {
+  color-scheme: light dark;
+}
+body {
+  font-family: system-ui, sans-serif;
+  max-width: 26rem;
+  margin: 4rem auto;
+  padding: 0 1rem;
+}
+h1 {
+  font-size: 1.3rem;
+}
+h2 {
+  font-size: 1.05rem;
+}
+label {
+  display: block;
+  margin-top: 0.8rem;
+  font-size: 0.9rem;
+}
+input {
+  width: 100%;
+  padding: 0.5rem;
+  margin-top: 0.2rem;
+  box-sizing: border-box;
+}
+button {
+  margin-top: 1rem;
+  padding: 0.55rem 1.2rem;
+  cursor: pointer;
+}
+.muted {
+  color: gray;
+  font-size: 0.85rem;
+}
+.error {
+  color: #c0392b;
+  margin-top: 0.8rem;
+  min-height: 1.2em;
+}
+.row {
+  display: flex;
+  gap: 0.8rem;
+}
+.card {
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 8px;
+  padding: 0.7rem 0.9rem;
+  margin-top: 0.7rem;
+}
+.card h3 {
+  margin: 0 0 0.3rem;
+  font-size: 0.95rem;
+}
+.card p {
+  margin: 0.3rem 0;
+  font-size: 0.85rem;
+}
+.card a button,
+.card button {
+  margin-top: 0.4rem;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+}
+.copy-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.5rem 0;
+}
+.copy-row code {
+  flex: 1;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 0.4rem;
+}
+.copy-row button {
+  margin-top: 0;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+code {
+  background: rgba(128, 128, 128, 0.15);
+  padding: 0.1em 0.3em;
+  border-radius: 3px;
+}
+ul {
+  padding-left: 1.2rem;
+}
+.remove-btn {
+  margin-top: 0;
+  margin-left: 0.4rem;
+  padding: 0.15rem 0.5rem;
+}

@@ -23,6 +23,10 @@ export const auth = betterAuth({
   baseURL: config.BASE_URL,
   secret: config.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, { provider: "pg" }),
+  // The web app proxies /api/auth/* to us, so browser POSTs arrive with the web
+  // origin in the Origin header; better-auth (and the Stripe plugin's
+  // success/cancel/return URL originCheck) must trust it.
+  trustedOrigins: [config.WEB_URL],
   emailAndPassword: {
     enabled: true,
   },
@@ -31,8 +35,11 @@ export const auth = betterAuth({
   plugins: [
     jwt(),
     oauthProvider({
-      loginPage: "/sign-in",
-      consentPage: "/consent",
+      // Absolute web-origin URLs: sign-in/consent pages live on the Next.js app.
+      // The plugin uses these verbatim (no origin validation) — pinned exactly in
+      // package.json, with an e2e canary asserting the redirect target.
+      loginPage: `${config.WEB_URL}/sign-in`,
+      consentPage: `${config.WEB_URL}/consent`,
       allowDynamicClientRegistration: true,
       // MCP clients (Claude, ChatGPT) register as public clients without credentials
       allowUnauthenticatedClientRegistration: true,

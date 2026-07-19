@@ -2,6 +2,9 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 const BASE = (process.argv[2] ?? process.env.E2E_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
+// The MCP endpoint (and OAuth resource/audience) always lives on the API
+// origin, even when BASE points at the web proxy — mirroring real MCP clients.
+const MCP_BASE = (process.env.E2E_MCP_URL ?? BASE).replace(/\/$/, "");
 const b64url = (buf) => buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 const ORIGIN = { Origin: BASE };
 const die = (msg, extra) => { console.error("FAIL:", msg, extra ?? ""); process.exit(1); };
@@ -46,7 +49,7 @@ authUrl.search = new URLSearchParams({
   state: "e2e-state",
   code_challenge: challenge,
   code_challenge_method: "S256",
-  resource: `${BASE}/mcp`,
+  resource: `${MCP_BASE}/mcp`,
 }).toString();
 res = await fetch(authUrl, { redirect: "manual", headers: { cookie, Accept: "text/html" } });
 let consentLocation = res.headers.get("location");
@@ -55,6 +58,13 @@ if (!consentLocation && res.status === 200) {
   if (body?.redirect) consentLocation = body.url;
 }
 if (!consentLocation?.includes("/consent")) die(`expected redirect to /consent, got ${res.status}`, consentLocation);
+// Canary: the consent page must live on the web origin. The oauth-provider
+// plugin uses our configured consentPage URL verbatim (undocumented behavior,
+// pinned exactly in package.json) — fail loudly if an upgrade changes that.
+const expectedWebUrl = process.env.E2E_WEB_URL;
+if (expectedWebUrl && !consentLocation.startsWith(expectedWebUrl)) {
+  die(`consent redirect should target WEB_URL ${expectedWebUrl}`, consentLocation);
+}
 console.log("3. authorize ok → consent page");
 
 // 4. Approve consent
@@ -84,7 +94,7 @@ res = await fetch(`${BASE}/api/auth/oauth2/token`, {
     redirect_uri: redirectUri,
     client_id: client.client_id,
     code_verifier: verifier,
-    resource: `${BASE}/mcp`,
+    resource: `${MCP_BASE}/mcp`,
   }),
 });
 if (!res.ok) die("token exchange failed", await res.text());
@@ -98,7 +108,7 @@ const mcpHeaders = {
   "Content-Type": "application/json",
   Accept: "application/json, text/event-stream",
 };
-res = await fetch(`${BASE}/mcp`, {
+res = await fetch(`${MCP_BASE}/mcp`, {
   method: "POST",
   headers: mcpHeaders,
   body: JSON.stringify({
@@ -114,17 +124,17 @@ console.log("6. MCP initialize ok, session:", sessionId);
 // 7. Call the ping tool
 const sse = { ...mcpHeaders, "mcp-session-id": sessionId, "MCP-Protocol-Version": "2025-06-18" };
 const callTool = async (name, args = {}, id = 100) => {
-  const r = await fetch(`${BASE}/mcp`, {
+  const r = await fetch(`${MCP_BASE}/mcp`, {
     method: "POST", headers: sse,
     body: JSON.stringify({ jsonrpc: "2.0", id, method: "tools/call", params: { name, arguments: args } }),
   });
   return r.text();
 };
-await fetch(`${BASE}/mcp`, {
+await fetch(`${MCP_BASE}/mcp`, {
   method: "POST", headers: sse,
   body: JSON.stringify({ jsonrpc: "2.0", method: "notifications/initialized" }),
 });
-res = await fetch(`${BASE}/mcp`, {
+res = await fetch(`${MCP_BASE}/mcp`, {
   method: "POST", headers: sse,
   body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "ping", arguments: {} } }),
 });
@@ -133,7 +143,7 @@ if (!text.includes("pong")) die("ping tool failed", text);
 console.log("7. ping tool ok:", /"text":"([^"]*)"/.exec(text)?.[1]);
 
 // 8. Wrong-token rejection: unauthenticated request with session id must 401
-res = await fetch(`${BASE}/mcp`, {
+res = await fetch(`${MCP_BASE}/mcp`, {
   method: "POST",
   headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", "mcp-session-id": sessionId },
   body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/list" }),
@@ -189,7 +199,7 @@ if (res.status !== 302 || !res.headers.get("location")?.includes("/dashboard")) 
 console.log("10. mock company connected");
 
 // 11. list_companies through MCP shows the connected company
-res = await fetch(`${BASE}/mcp`, {
+res = await fetch(`${MCP_BASE}/mcp`, {
   method: "POST", headers: sse,
   body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "list_companies", arguments: {} } }),
 });
@@ -198,7 +208,7 @@ if (!companiesText.includes("Testbolaget AB")) die("list_companies missing conne
 console.log("11. list_companies shows: Testbolaget AB");
 
 // 12. tools/list — write toggle must filter mutating tools from the listing
-res = await fetch(`${BASE}/mcp`, {
+res = await fetch(`${MCP_BASE}/mcp`, {
   method: "POST", headers: sse,
   body: JSON.stringify({ jsonrpc: "2.0", id: 5, method: "tools/list" }),
 });

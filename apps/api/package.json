@@ -1,0 +1,56 @@
+{
+  "name": "@acc/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-tenant MCP server connecting accounting software (Bokio first) to MCP clients",
+  "type": "module",
+  "exports": {
+    "./trpc": {
+      "types": "./src/trpc/router.ts"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "gen:bokio": "openapi-typescript specs/company-api.yaml -o src/bokio/generated/company.d.ts && openapi-typescript specs/general-api.yaml -o src/bokio/generated/general.d.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "e2e:oauth": "node scripts/e2e-oauth.mjs",
+    "e2e:token": "node scripts/e2e-token-connect.mjs",
+    "e2e": "node scripts/e2e-token-connect.mjs && node scripts/e2e-oauth.mjs"
+  },
+  "dependencies": {
+    "@better-auth/oauth-provider": "1.6.23",
+    "@better-auth/stripe": "^1.6.23",
+    "@hono/mcp": "^0.3.1",
+    "@hono/node-server": "^2.0.10",
+    "@hono/trpc-server": "^0.4.2",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@trpc/server": "^11.18.0",
+    "better-auth": "^1.6.23",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.30",
+    "openapi-fetch": "^0.17.0",
+    "pg": "^8.22.0",
+    "stripe": "^22.3.2",
+    "superjson": "^2.2.6",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "@types/pg": "^8.20.0",
+    "drizzle-kit": "^0.31.10",
+    "openapi-typescript": "^7.13.0",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
+  }
+}

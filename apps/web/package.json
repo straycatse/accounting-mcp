@@ -1,0 +1,29 @@
+{
+  "name": "@acc/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3001",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@acc/api": "workspace:*",
+    "@better-auth/stripe": "^1.6.23",
+    "@tanstack/react-query": "^5",
+    "@trpc/client": "^11",
+    "@trpc/tanstack-react-query": "^11",
+    "better-auth": "^1.6.23",
+    "next": "^16",
+    "react": "^19",
+    "react-dom": "^19",
+    "superjson": "^2.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5.9.3"
+  }
+}

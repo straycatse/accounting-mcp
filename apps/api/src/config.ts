@@ -11,6 +11,10 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   // Public base URL of this server (OAuth issuer, redirect URIs). No trailing slash.
   BASE_URL: z.string().url().default("http://localhost:3000"),
+  // Public origin of the Next.js web app (dashboard, sign-in, consent). The web
+  // app proxies /api/*, /connect/* and /api/auth/* here, so browser-facing
+  // redirects must target it. Defaults to BASE_URL for single-server dev/tests.
+  WEB_URL: z.string().url().optional(),
   DATABASE_URL: z.string().min(1),
   BETTER_AUTH_SECRET: z.string().min(32),
   // base64-encoded 32-byte key for AES-256-GCM encryption of provider tokens
@@ -53,7 +57,7 @@ const envSchema = z.object({
   AUDIT_LOG_PARAMS: boolFromString,
 });
 
-export type Config = z.infer<typeof envSchema>;
+export type Config = z.infer<typeof envSchema> & { WEB_URL: string };
 
 function loadConfig(): Config {
   const parsed = envSchema.safeParse(process.env);
@@ -63,7 +67,7 @@ function loadConfig(): Config {
       .join("\n");
     throw new Error(`Invalid environment configuration:\n${issues}`);
   }
-  const config = parsed.data;
+  const config = { ...parsed.data, WEB_URL: parsed.data.WEB_URL ?? parsed.data.BASE_URL };
   if (
     config.BILLING_ENABLED &&
     (!config.STRIPE_SECRET_KEY || !config.STRIPE_WEBHOOK_SECRET || !config.STRIPE_PRICE_ID)
