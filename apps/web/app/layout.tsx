@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "accounting-mcp",
@@ -10,12 +13,9 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className="font-sans antialiased">
         <Providers>{children}</Providers>
-        <p className="muted" style={{ marginTop: "3rem" }}>
-          <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link> · Stray Cat AB
-        </p>
       </body>
     </html>
   );

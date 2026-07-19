@@ -3,8 +3,8 @@ export const metadata = { title: "Privacy policy — accounting-mcp" };
 export default function PrivacyPage() {
   return (
     <>
-      <h1>Privacy policy</h1>
-      <ul>
+      <h1 className="text-2xl font-semibold tracking-tight">Privacy policy</h1>
+      <ul className="list-disc space-y-2 pl-5">
         <li>
           We store your email, password hash, and the OAuth tokens needed to reach your accounting
           provider. Provider tokens are encrypted at rest (AES-256-GCM).
@@ -22,11 +22,13 @@ export default function PrivacyPage() {
         <li>
           Disconnecting a company or deleting your account removes the stored tokens. Data
           controller: Stray Cat AB — contact{" "}
-          <a href="mailto:simon@straycat.se">simon@straycat.se</a> for access or deletion requests
-          (GDPR).
+          <a href="mailto:simon@straycat.se" className="underline underline-offset-4">
+            simon@straycat.se
+          </a>{" "}
+          for access or deletion requests (GDPR).
         </li>
       </ul>
-      <p className="muted">
+      <p className="text-muted-foreground">
         <em>Svenska:</em> Vi lagrar endast det som krävs för att koppla din bokföring till din
         AI-assistent. Tokens krypteras, bokföringsdata vidarebefordras bara på din begäran och säljs
         aldrig vidare. Kontakta simon@straycat.se för registerutdrag eller radering.
