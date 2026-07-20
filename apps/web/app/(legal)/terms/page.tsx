@@ -1,37 +1,34 @@
-export const metadata = { title: "Terms of service — accounting-mcp" };
+import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 
-export default function TermsPage() {
+const SUPPORT_EMAIL = "simon@straycat.se";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("legal.terms");
+  return { title: t("metaTitle") };
+}
+
+export default async function TermsPage() {
+  const t = await getTranslations("legal.terms");
+
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">Terms of service</h1>
-      <p className="text-muted-foreground">accounting-mcp is operated by Stray Cat AB, Sweden.</p>
+      <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+      <p className="text-muted-foreground">{t("intro")}</p>
       <ul className="list-disc space-y-2 pl-5">
+        <li>{t("scope")}</li>
+        <li>{t("payment")}</li>
+        <li>{t("liability")}</li>
         <li>
-          The service lets you connect your own accounting software (currently Bokio) to AI
-          assistants via the Model Context Protocol. You act on your own accounting data, on your
-          own instruction, under your own Bokio agreement.
-        </li>
-        <li>
-          After a free trial, continued use requires a paid subscription (price shown at checkout,
-          per connected company, excl. VAT). You can cancel any time; access remains until the end
-          of the paid period.
-        </li>
-        <li>
-          The service is provided as-is. Always review AI-initiated bookkeeping changes; you are
-          responsible for the correctness of your accounts.
-        </li>
-        <li>
-          Support:{" "}
-          <a href="mailto:simon@straycat.se" className="underline underline-offset-4">
-            simon@straycat.se
-          </a>
+          {t.rich("support", {
+            mail: () => (
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="underline underline-offset-4">
+                {SUPPORT_EMAIL}
+              </a>
+            ),
+          })}
         </li>
       </ul>
-      <p className="text-muted-foreground">
-        <em>Svenska:</em> Tjänsten drivs av Stray Cat AB. Efter en gratis provperiod krävs
-        prenumeration (pris per anslutet företag, exkl. moms). Du ansvarar själv för din bokföring
-        — granska alltid ändringar som görs via AI.
-      </p>
     </>
   );
 }

@@ -1,6 +1,7 @@
 import { eq, inArray, and } from "drizzle-orm";
 import { config } from "../config.js";
 import { db } from "../db/index.js";
+import type { MessageKey } from "../lib/app-error.js";
 import { billingAccount, subscription } from "../db/schema.js";
 
 // Subscription statuses that grant access. `trialing` is the Stripe-run free
@@ -20,7 +21,16 @@ export interface BillingState {
   trialing: boolean;
 }
 
-export type Entitlement = { ok: true } | { ok: false; reason: string; message: string };
+/**
+ * A refusal carries both forms of its explanation:
+ *  - `message`: English prose, handed to the *model* through MCP tool results
+ *    (company-resolver), where it doubles as an instruction to the assistant.
+ *  - `key`/`params`: a message-catalog reference for the *browser*, translated
+ *    in apps/web. Same refusal, two audiences, deliberately worded differently.
+ */
+export type Entitlement =
+  | { ok: true }
+  | ({ ok: false; reason: string; message: string } & MessageKey);
 
 export async function getBillingState(userId: string): Promise<BillingState> {
   const [account] = await db
@@ -69,6 +79,8 @@ export async function checkEntitlement(
       message:
         `This server requires a subscription (it starts with a ${config.TRIAL_DAYS}-day free trial). ` +
         `Ask the user to start it at ${config.BASE_URL}/dashboard.`,
+      key: "billing.subscriptionRequired",
+      params: { trialDays: config.TRIAL_DAYS },
     };
   }
 
@@ -81,6 +93,8 @@ export async function checkEntitlement(
         `The subscription covers ${seats} compan${seats === 1 ? "y" : "ies"} but ${companyCount} ` +
         `would be in use. Ask the user to add a company to their subscription at ` +
         `${config.BASE_URL}/dashboard (or disconnect one).`,
+      key: "billing.seatsExceeded",
+      params: { seats, required: companyCount },
     };
   }
 

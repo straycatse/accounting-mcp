@@ -1,20 +1,25 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AppSidebar } from "@/components/app-sidebar";
 import { AuthGate } from "@/components/auth-gate";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
-const titles: Record<string, string> = {
-  "/dashboard": "Dashboard",
-  "/companies": "Companies",
-  "/connectors": "AI Connectors",
-};
+// Route → message key; the label itself is looked up at render time so it
+// follows the active locale.
+const TITLE_KEYS = {
+  "/dashboard": "dashboard",
+  "/companies": "companies",
+  "/connectors": "connectors",
+} as const;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("nav");
   const pathname = usePathname();
-  const title = titles[pathname] ?? "accounting-mcp";
+  const titleKey = TITLE_KEYS[pathname as keyof typeof TITLE_KEYS];
+  const title = titleKey ? t(titleKey) : "accounting-mcp";
 
   return (
     <AuthGate>

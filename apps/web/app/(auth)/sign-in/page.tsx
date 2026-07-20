@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AlertCircle } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { Alert, AlertTitle } from "@/components/ui/alert";
@@ -18,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 function SignInForm() {
+  const t = useTranslations("signIn");
   const searchParams = useSearchParams();
   const [mode, setMode] = useState<"in" | "up">("in");
   const [name, setName] = useState("");
@@ -36,7 +38,7 @@ function SignInForm() {
           ? await authClient.signUp.email({ name: name || email, email, password })
           : await authClient.signIn.email({ email, password });
       if (result.error) {
-        setError(result.error.message ?? "Authentication failed");
+        setError(result.error.message ?? t("failed"));
         return;
       }
       // Continue the OAuth authorization this login interrupted, if any
@@ -55,8 +57,8 @@ function SignInForm() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>{mode === "in" ? "Sign in" : "Sign up"}</CardTitle>
-        <CardDescription>Continue to authorize access to your accounting data.</CardDescription>
+        <CardTitle>{mode === "in" ? t("signIn") : t("signUp")}</CardTitle>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <form onSubmit={submit}>
         <CardContent className="space-y-4">
@@ -68,7 +70,7 @@ function SignInForm() {
           )}
           {mode === "up" && (
             <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
+              <Label htmlFor="name">{t("name")}</Label>
               <Input
                 id="name"
                 value={name}
@@ -78,7 +80,7 @@ function SignInForm() {
             </div>
           )}
           <div className="grid gap-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email">{t("email")}</Label>
             <Input
               id="email"
               type="email"
@@ -89,7 +91,7 @@ function SignInForm() {
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">{t("password")}</Label>
             <Input
               id="password"
               type="password"
@@ -103,7 +105,7 @@ function SignInForm() {
         </CardContent>
         <CardFooter className="mt-6 flex-col gap-2">
           <Button type="submit" className="w-full" disabled={busy}>
-            {mode === "in" ? "Sign in" : "Sign up"}
+            {mode === "in" ? t("signIn") : t("signUp")}
           </Button>
           <Button
             type="button"
@@ -111,7 +113,7 @@ function SignInForm() {
             size="sm"
             onClick={() => setMode(mode === "in" ? "up" : "in")}
           >
-            {mode === "in" ? "No account? Sign up" : "Have an account? Sign in"}
+            {mode === "in" ? t("toSignUp") : t("toSignIn")}
           </Button>
         </CardFooter>
       </form>

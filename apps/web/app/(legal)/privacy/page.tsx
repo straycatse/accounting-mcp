@@ -1,38 +1,34 @@
-export const metadata = { title: "Privacy policy — accounting-mcp" };
+import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 
-export default function PrivacyPage() {
+const SUPPORT_EMAIL = "simon@straycat.se";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("legal.privacy");
+  return { title: t("metaTitle") };
+}
+
+export default async function PrivacyPage() {
+  const t = await getTranslations("legal.privacy");
+
   return (
     <>
-      <h1 className="text-2xl font-semibold tracking-tight">Privacy policy</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
       <ul className="list-disc space-y-2 pl-5">
+        <li>{t("storage")}</li>
+        <li>{t("dataUse")}</li>
+        <li>{t("audit")}</li>
+        <li>{t("payments")}</li>
         <li>
-          We store your email, password hash, and the OAuth tokens needed to reach your accounting
-          provider. Provider tokens are encrypted at rest (AES-256-GCM).
-        </li>
-        <li>
-          Accounting data is fetched from your provider on demand when you (via your AI assistant)
-          request it, and passed through to your assistant. We do not store, resell, or use your
-          accounting data for any other purpose, including training.
-        </li>
-        <li>
-          A minimal audit log of tool activity (tool name, timestamp, success) is kept for security
-          and support.
-        </li>
-        <li>Payments are processed by Stripe; we never see your card details.</li>
-        <li>
-          Disconnecting a company or deleting your account removes the stored tokens. Data
-          controller: Stray Cat AB — contact{" "}
-          <a href="mailto:simon@straycat.se" className="underline underline-offset-4">
-            simon@straycat.se
-          </a>{" "}
-          for access or deletion requests (GDPR).
+          {t.rich("deletion", {
+            mail: () => (
+              <a href={`mailto:${SUPPORT_EMAIL}`} className="underline underline-offset-4">
+                {SUPPORT_EMAIL}
+              </a>
+            ),
+          })}
         </li>
       </ul>
-      <p className="text-muted-foreground">
-        <em>Svenska:</em> Vi lagrar endast det som krävs för att koppla din bokföring till din
-        AI-assistent. Tokens krypteras, bokföringsdata vidarebefordras bara på din begäran och säljs
-        aldrig vidare. Kontakta simon@straycat.se för registerutdrag eller radering.
-      </p>
     </>
   );
 }

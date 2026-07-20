@@ -70,9 +70,15 @@ connectFortnox.get("/connect/fortnox/callback", async (c) => {
   const expectedState = getCookie(c, STATE_COOKIE);
   deleteCookie(c, STATE_COOKIE, { path: "/connect" });
 
-  if (error) return c.text(`Fortnox authorization failed: ${error}`, 400);
+  // Bounce back to the dashboard with a *code* rather than rendering prose the
+  // API can't translate — the web app owns the message catalogs. A dead-end
+  // plain-text 400 was also a worse place to land than the page you started on.
+  if (error) {
+    console.warn(`Fortnox authorization failed: ${error}`);
+    return c.redirect(webPage("/dashboard?error=oauth_denied"));
+  }
   if (!code || !state || !expectedState || state !== expectedState) {
-    return c.text("Invalid OAuth state — please retry from the dashboard.", 400);
+    return c.redirect(webPage("/dashboard?error=oauth_state"));
   }
 
   const tokens = await exchangeAuthorizationCode(code, redirectUri);
@@ -85,7 +91,10 @@ connectFortnox.get("/connect/fortnox/callback", async (c) => {
   try {
     ({ tenantId, companyName } = await fetchFortnoxCompanyInfo(tokens.access_token));
   } catch (err) {
-    return c.text(err instanceof Error ? err.message : "Could not read company information from Fortnox.", 502);
+    console.warn(
+      `Fortnox company information unavailable: ${err instanceof Error ? err.message : err}`,
+    );
+    return c.redirect(webPage("/dashboard?error=company_info"));
   }
 
   const entitled = await connectSeatCheck(user.id, "fortnox", tenantId);

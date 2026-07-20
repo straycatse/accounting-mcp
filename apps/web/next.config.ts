@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 // Server-side proxy target for the API. In Railway this is the private-network
 // URL of the api service; locally the api dev server. All browser-facing API
@@ -19,4 +20,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Locale comes from a cookie / Accept-Language, not the URL, so there is no
+// routing middleware — just the request config.
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
+export default withNextIntl(nextConfig);

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ChevronsUpDown, FileText, LogOut, ShieldCheck, UserRound } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { LanguageMenuItems } from "@/components/language-switcher";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,6 +16,7 @@ import {
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 
 export function NavUser() {
+  const t = useTranslations();
   const session = authClient.useSession();
   const { isMobile } = useSidebar();
   const email = session.data?.user.email ?? "";
@@ -31,7 +34,7 @@ export function NavUser() {
                 <UserRound className="size-4" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">Signed in</span>
+                <span className="truncate font-medium">{t("nav.signedIn")}</span>
                 <span className="truncate text-xs text-muted-foreground">{email}</span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
@@ -47,16 +50,18 @@ export function NavUser() {
               {email}
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            <LanguageMenuItems label={t("common.language")} />
+            <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href="/terms">
                 <FileText />
-                Terms
+                {t("common.terms")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link href="/privacy">
                 <ShieldCheck />
-                Privacy
+                {t("common.privacy")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -68,7 +73,7 @@ export function NavUser() {
               }}
             >
               <LogOut />
-              Sign out
+              {t("nav.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

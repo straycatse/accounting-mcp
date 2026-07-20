@@ -71,9 +71,15 @@ connectBokio.get("/connect/bokio/callback", async (c) => {
   const expectedState = getCookie(c, STATE_COOKIE);
   deleteCookie(c, STATE_COOKIE, { path: "/connect" });
 
-  if (error) return c.text(`Bokio authorization failed: ${error}`, 400);
+  // Bounce back to the dashboard with a *code* rather than rendering prose the
+  // API can't translate — the web app owns the message catalogs. A dead-end
+  // plain-text 400 was also a worse place to land than the page you started on.
+  if (error) {
+    console.warn(`Bokio authorization failed: ${error}`);
+    return c.redirect(webPage("/dashboard?error=oauth_denied"));
+  }
   if (!code || !state || !expectedState || state !== expectedState) {
-    return c.text("Invalid OAuth state — please retry from the dashboard.", 400);
+    return c.redirect(webPage("/dashboard?error=oauth_state"));
   }
 
   const tokens = await exchangeAuthorizationCode(code, redirectUri);
@@ -116,7 +122,12 @@ connectBokio.post("/connect/bokio/token", async (c) => {
   };
   const result = await connectViaToken(user.id, body.integrationToken, body.companyId);
   if (!result.ok) {
-    return c.json({ error: result.error, message: result.message }, result.httpStatus);
+    // A JSON API, not a rendered page: hand back the message-catalog reference
+    // and let the caller localise it (the web app does so via tRPC).
+    return c.json(
+      { error: result.error, messageKey: result.key, messageParams: result.params },
+      result.httpStatus,
+    );
   }
   return c.json({ ok: true, companyName: result.companyName, companyId: result.companyId });
 });

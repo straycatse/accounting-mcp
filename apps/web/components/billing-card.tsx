@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { AlertCircle, CreditCard } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useTRPC } from "@/lib/trpc";
@@ -19,6 +20,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function BillingCard() {
+  const t = useTranslations("billing");
   const trpc = useTRPC();
   const billing = useQuery(trpc.billing.get.queryOptions());
   const [billingError, setBillingError] = useState("");
@@ -36,7 +38,7 @@ export function BillingCard() {
           })
         : await authClient.subscription.billingPortal({ returnUrl: returnTo });
     if (result.error) {
-      setBillingError(result.error.message ?? "Billing request failed");
+      setBillingError(result.error.message ?? t("failed"));
     } else if (result.data && "url" in result.data && typeof result.data.url === "string") {
       window.location.href = result.data.url;
     }
@@ -58,21 +60,19 @@ export function BillingCard() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <CreditCard className="size-4" />
-          Subscription
+          {t("title")}
           {trialDaysLeft !== null && (
-            <Badge variant="secondary">
-              Trial — {trialDaysLeft} {trialDaysLeft === 1 ? "day" : "days"} left
-            </Badge>
+            <Badge variant="secondary">{t("trialBadge", { days: trialDaysLeft })}</Badge>
           )}
         </CardTitle>
         <CardDescription>
           {b.complimentary
-            ? "Complimentary account — no subscription needed."
+            ? t("complimentary")
             : b.subscriptionStatus
               ? trialDaysLeft !== null
-                ? `Add a payment method before the trial ends to continue with ${b.seats} ${b.seats === 1 ? "company" : "companies"}; otherwise the subscription simply ends.`
-                : `Subscribed — ${b.seats} ${b.seats === 1 ? "company" : "companies"} (status: ${b.subscriptionStatus}).`
-              : "Start with a free trial — no card required. Add a payment method before it ends to keep your companies connected."}
+                ? t("trialing", { seats: b.seats ?? 1 })
+                : t("subscribed", { seats: b.seats ?? 1, status: b.subscriptionStatus })
+              : t("none")}
         </CardDescription>
       </CardHeader>
       {billingError && (
@@ -85,16 +85,16 @@ export function BillingCard() {
       )}
       <CardFooter className="flex flex-wrap gap-2">
         {!b.complimentary && !b.subscriptionStatus && (
-          <Button onClick={() => void billingAction("subscribe", 1)}>Start free trial</Button>
+          <Button onClick={() => void billingAction("subscribe", 1)}>{t("startTrial")}</Button>
         )}
         {!b.complimentary && b.subscriptionStatus && !b.canConnect && (
           <Button onClick={() => void billingAction("subscribe", b.activeConnections + 1)}>
-            Add a company ({b.activeConnections + 1} total)
+            {t("addCompany", { total: b.activeConnections + 1 })}
           </Button>
         )}
         {!b.complimentary && b.subscriptionStatus && (
           <Button variant="outline" onClick={() => void billingAction("portal")}>
-            Manage billing
+            {t("manage")}
           </Button>
         )}
       </CardFooter>
