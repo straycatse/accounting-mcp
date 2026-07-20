@@ -30,6 +30,9 @@ export const errorResult = (text: string): CallToolResult => ({
   isError: true,
 });
 
+const providerOf = (name: string) =>
+  name.startsWith("bokio_") ? "bokio" : name.startsWith("fortnox_") ? "fortnox" : null;
+
 async function audit(
   def: ToolDef,
   ctx: ToolContext,
@@ -42,7 +45,7 @@ async function audit(
     const { toolAuditLog } = await import("../db/schema.js");
     await db.insert(toolAuditLog).values({
       userId: ctx.userId,
-      provider: def.name.startsWith("bokio_") ? "bokio" : null,
+      provider: providerOf(def.name),
       tenantId: typeof args["companyId"] === "string" ? args["companyId"] : null,
       toolName: def.name,
       mutating: !def.readOnly,
@@ -61,7 +64,9 @@ async function audit(
  */
 export function registerTools(server: McpServer, ctx: ToolContext, defs: ToolDef[]) {
   for (const def of defs) {
-    if (!def.readOnly && !config.BOKIO_ALLOW_WRITES) continue;
+    const allowWrites =
+      providerOf(def.name) === "fortnox" ? config.FORTNOX_ALLOW_WRITES : config.BOKIO_ALLOW_WRITES;
+    if (!def.readOnly && !allowWrites) continue;
     server.registerTool(
       def.name,
       {

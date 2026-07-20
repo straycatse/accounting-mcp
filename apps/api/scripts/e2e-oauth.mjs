@@ -215,7 +215,8 @@ res = await fetch(`${MCP_BASE}/mcp`, {
 const toolsText = await res.text();
 const toolNames = [...toolsText.matchAll(/"name":"([\w-]+)"/g)].map((m) => m[1]);
 const statusText = await callTool("get_connection_status", {}, 6);
-const writesEnabled = /writesEnabled\\?": ?true/.test(statusText);
+// writesEnabled is nested per provider: "writesEnabled": { "bokio": true, ... }
+const writesEnabled = /writesEnabled\\?":\s*\{[^}]*"bokio\\?":\s*true/.test(statusText);
 const hasWrite = toolNames.includes("bokio_create_invoice");
 if (!toolNames.includes("bokio_list_invoices")) die("bokio_list_invoices missing from tools/list");
 if (hasWrite !== writesEnabled) {

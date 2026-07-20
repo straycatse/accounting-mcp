@@ -20,11 +20,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "gen:bokio": "openapi-typescript specs/company-api.yaml -o src/bokio/generated/company.d.ts && openapi-typescript specs/general-api.yaml -o src/bokio/generated/general.d.ts",
+    "gen:fortnox": "openapi-typescript specs/fortnox.json -o src/fortnox/generated/api.d.ts && node scripts/gen-fortnox-ops.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "e2e:oauth": "node scripts/e2e-oauth.mjs",
     "e2e:token": "node scripts/e2e-token-connect.mjs",
-    "e2e": "node scripts/e2e-token-connect.mjs && node scripts/e2e-oauth.mjs"
+    "e2e:fortnox": "node scripts/e2e-fortnox-oauth.mjs",
+    "e2e": "node scripts/e2e-token-connect.mjs && node scripts/e2e-oauth.mjs && node scripts/e2e-fortnox-oauth.mjs"
   },
   "dependencies": {
     "@better-auth/oauth-provider": "1.6.23",

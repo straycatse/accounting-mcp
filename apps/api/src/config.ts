@@ -45,6 +45,28 @@ const envSchema = z.object({
     ),
   BOKIO_ALLOW_WRITES: boolFromString,
   BOKIO_MOCK: boolFromString,
+  FORTNOX_CLIENT_ID: z.string().default(""),
+  FORTNOX_CLIENT_SECRET: z.string().default(""),
+  // Fortnox splits hosts: OAuth on apps.fortnox.se, API on api.fortnox.se.
+  FORTNOX_AUTH_BASE_URL: z.string().url().default("https://apps.fortnox.se/oauth-v1"),
+  FORTNOX_API_BASE_URL: z.string().url().default("https://api.fortnox.se"),
+  // Space-separated Fortnox OAuth scopes. Load-bearing beyond the authorize
+  // URL: tools/fortnox/index.ts registers only ops whose scope is listed here,
+  // so this decides the tool surface too. Widening it requires ticking the
+  // matching permission in the apps.fortnox.se portal. Deliberately omitted:
+  // asset, salary, timereporting, warehouse, noxfinansinvoice (paid add-on
+  // modules — requesting them imposes license requirements on customers).
+  FORTNOX_SCOPES: z
+    .string()
+    .default(
+      [
+        "companyinformation bookkeeping invoice customer supplier supplierinvoice",
+        "article archive inbox order offer project price costcenter currency",
+        "settings connectfile payment print",
+      ].join(" "),
+    ),
+  FORTNOX_ALLOW_WRITES: boolFromString,
+  FORTNOX_MOCK: boolFromString,
   // Billing (Stripe via @better-auth/stripe). Off by default: everything is free
   // until launch. When enabled, users get a card-less TRIAL_DAYS trial starting
   // at their first company connection, then need an active subscription.
@@ -79,6 +101,11 @@ function loadConfig(): Config {
   if (!config.BOKIO_MOCK && (!config.BOKIO_CLIENT_ID || !config.BOKIO_CLIENT_SECRET)) {
     console.warn(
       "[config] BOKIO_CLIENT_ID/BOKIO_CLIENT_SECRET are not set and BOKIO_MOCK=false — Bokio connections will fail until credentials are configured.",
+    );
+  }
+  if (!config.FORTNOX_MOCK && (!config.FORTNOX_CLIENT_ID || !config.FORTNOX_CLIENT_SECRET)) {
+    console.warn(
+      "[config] FORTNOX_CLIENT_ID/FORTNOX_CLIENT_SECRET are not set and FORTNOX_MOCK=false — Fortnox connections will fail until credentials are configured.",
     );
   }
   return config;

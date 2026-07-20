@@ -5,6 +5,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { verifyAccessToken } from "better-auth/oauth2";
 import { config } from "../config.js";
 import { bokioTools } from "../tools/bokio/index.js";
+import { fortnoxTools } from "../tools/fortnox/index.js";
 import { metaTools } from "../tools/meta.js";
 import { registerTools } from "../tools/registry.js";
 
@@ -73,7 +74,7 @@ function buildMcpServer(context: McpRequestContext): McpServer {
       content: [{ type: "text", text: `pong — authenticated as user ${context.userId}` }],
     }),
   );
-  registerTools(server, context, [...metaTools, ...bokioTools]);
+  registerTools(server, context, [...metaTools, ...bokioTools, ...fortnoxTools]);
   return server;
 }
 

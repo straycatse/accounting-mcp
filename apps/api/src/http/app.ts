@@ -4,7 +4,9 @@ import { trpcServer } from "@hono/trpc-server";
 import { sql } from "drizzle-orm";
 import { auth } from "../auth/auth.js";
 import { connectBokio } from "../auth/connect-bokio.js";
+import { connectFortnox } from "../auth/connect-fortnox.js";
 import { mockBokio } from "../bokio/mock/router.js";
+import { mockFortnox } from "../fortnox/mock/router.js";
 import { config } from "../config.js";
 import { db } from "../db/index.js";
 import { createContext } from "../trpc/context.js";
@@ -62,6 +64,9 @@ export function createApp() {
   if (config.BOKIO_MOCK) {
     app.route("/mock/bokio/v1", mockBokio);
   }
+  if (config.FORTNOX_MOCK) {
+    app.route("/mock/fortnox", mockFortnox);
+  }
 
   // Dashboard data API for the Next.js web app (proxied through its origin).
   app.use(
@@ -70,6 +75,7 @@ export function createApp() {
   );
 
   app.route("/", connectBokio);
+  app.route("/", connectFortnox);
   mountMcp(app);
 
   return app;

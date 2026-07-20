@@ -6,19 +6,26 @@ import { accountingConnection } from "../db/schema.js";
 
 type Connection = typeof accountingConnection.$inferSelect;
 
+const PROVIDER_LABELS = { bokio: "Bokio", fortnox: "Fortnox" } as const;
+
 /**
  * Resolves which connected company a tool call targets. Single choke point for
  * tenant isolation: an explicit companyId must belong to the calling user.
  */
-export async function resolveConnection(userId: string, companyId?: string): Promise<Connection> {
+export async function resolveConnection(
+  userId: string,
+  companyId: string | undefined,
+  provider: keyof typeof PROVIDER_LABELS,
+): Promise<Connection> {
+  const label = PROVIDER_LABELS[provider];
   const rows = await db
     .select()
     .from(accountingConnection)
-    .where(and(eq(accountingConnection.userId, userId), eq(accountingConnection.provider, "bokio")));
+    .where(and(eq(accountingConnection.userId, userId), eq(accountingConnection.provider, provider)));
 
   // Entitlement is checked before the "nothing connected" case on purpose:
   // checkout gates the connect flow, so telling an unsubscribed user to go and
-  // connect a company would just bounce them back off /connect/bokio.
+  // connect a company would just bounce them back off the connect route.
   const entitlement = await checkEntitlement(
     userId,
     rows.filter((r) => r.status === "active").length,
@@ -27,7 +34,7 @@ export async function resolveConnection(userId: string, companyId?: string): Pro
 
   if (rows.length === 0) {
     throw new Error(
-      `No Bokio company is connected. Ask the user to visit ${config.BASE_URL}/dashboard and click "Connect a Bokio company".`,
+      `No ${label} company is connected. Ask the user to visit ${config.BASE_URL}/dashboard and connect a ${label} company.`,
     );
   }
 

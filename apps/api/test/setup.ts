@@ -9,3 +9,4 @@ process.env.DATABASE_URL ??= "postgres://accounting:accounting@localhost:5433/ac
 process.env.BETTER_AUTH_SECRET ??= "test-secret-test-secret-test-secret-12";
 process.env.TOKEN_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString("base64");
 process.env.BOKIO_MOCK ??= "true";
+process.env.FORTNOX_MOCK ??= "true";

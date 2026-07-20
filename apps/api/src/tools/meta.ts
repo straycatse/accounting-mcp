@@ -25,7 +25,7 @@ export const metaTools: ToolDef[] = [
         .where(eq(accountingConnection.userId, ctx.userId));
       if (rows.length === 0) {
         return textResult(
-          `No accounting companies are connected yet. Ask the user to visit ${config.BASE_URL}/dashboard and click "Connect a Bokio company", then try again.`,
+          `No accounting companies are connected yet. Ask the user to visit ${config.BASE_URL}/dashboard and connect a company (Bokio or Fortnox), then try again.`,
         );
       }
       return jsonResult(rows);
@@ -52,8 +52,8 @@ export const metaTools: ToolDef[] = [
         .where(eq(accountingConnection.userId, ctx.userId));
       const billing = await getBillingState(ctx.userId);
       return jsonResult({
-        writesEnabled: config.BOKIO_ALLOW_WRITES,
-        mockMode: config.BOKIO_MOCK,
+        writesEnabled: { bokio: config.BOKIO_ALLOW_WRITES, fortnox: config.FORTNOX_ALLOW_WRITES },
+        mockMode: { bokio: config.BOKIO_MOCK, fortnox: config.FORTNOX_MOCK },
         billing: billing.billingEnabled
           ? {
               subscribed: billing.subscriptionStatus !== null,

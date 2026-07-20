@@ -1,80 +1,102 @@
 import { z } from "zod";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import type { paths } from "../../bokio/generated/company.js";
-import { createBokioClient } from "../../bokio/client.js";
+import type { paths } from "../../fortnox/generated/api.js";
+import { createFortnoxClient, formatFortnoxError, type FortnoxErrorBody } from "../../fortnox/client.js";
 import { config } from "../../config.js";
 import { resolveConnection } from "../company-resolver.js";
 import { errorResult, jsonResult, type ToolDef } from "../registry.js";
 
-type HttpMethod = "get" | "post" | "put" | "delete";
-type PathsWithMethod<M extends HttpMethod> = {
-  [P in keyof paths]: paths[P] extends Record<M, unknown> ? P : never;
-}[keyof paths];
+type HttpMethod = "get" | "post" | "put" | "delete" | "patch";
 
-export interface BokioOpDef {
-  /** Tool name, e.g. "bokio_list_invoices" */
+export interface FortnoxQueryParam {
+  name: string;
+  type: "string" | "integer" | "number" | "boolean" | "array";
+}
+
+export interface FortnoxOpDef {
+  /** Tool name, e.g. "fortnox_invoices_list" */
   name: string;
   title: string;
   description: string;
   method: HttpMethod;
+  // Unlike Bokio there is no {companyId} path segment: a Fortnox token is
+  // scoped to one company, so the resolved connection alone picks the tenant.
   path: keyof paths & string;
-  /** Adds page/pageSize/query inputs (list endpoints) */
+  /** OAuth scope this endpoint needs; tools outside FORTNOX_SCOPES aren't registered */
+  scope: string;
+  /** Query params declared in the spec */
+  query?: FortnoxQueryParam[];
+  /** Collection endpoint → adds Fortnox's global page/limit/offset/sortorder params */
   list?: boolean;
-  /** Additional query-string params exposed as string inputs */
-  extraQuery?: string[];
-  /** Accepts a JSON `body` argument; the string documents its shape */
-  body?: string;
+  /** Accepts a JSON `body` argument */
+  body?: boolean;
   /** Response is a binary download → returned as base64 resource */
   binary?: boolean;
-  /** Multipart file upload: takes fileName/fileBase64/mimeType (+extra fields) */
+  /** Multipart file upload (form field "file") */
   upload?: boolean;
   readOnly: boolean;
   destructive?: boolean;
 }
 
-/** Compile-time check that `path` actually supports `method` in the generated spec types. */
-export function op<M extends HttpMethod, P extends PathsWithMethod<M> & string>(
-  method: M,
-  path: P,
-  def: Omit<BokioOpDef, "method" | "path">,
-): BokioOpDef {
-  return { ...def, method, path };
-}
-
-const PATH_PARAM_RE = /\{(\w+)\}/g;
+const PATH_PARAM_RE = /\{([^}]+)\}/g;
 
 function pathParamNames(path: string): string[] {
-  return [...path.matchAll(PATH_PARAM_RE)].map((m) => m[1]!).filter((p) => p !== "companyId");
+  return [...path.matchAll(PATH_PARAM_RE)].map((m) => m[1]!);
 }
 
-export function buildBokioTool(def: BokioOpDef): ToolDef {
+function queryZod(param: FortnoxQueryParam): z.ZodType {
+  switch (param.type) {
+    case "integer":
+    case "number":
+      return z.number().optional().describe(`Query parameter ${param.name}`);
+    case "boolean":
+      return z.boolean().optional().describe(`Query parameter ${param.name}`);
+    case "array":
+      return z.array(z.string()).optional().describe(`Query parameter ${param.name}`);
+    default:
+      return z.string().optional().describe(`Query parameter ${param.name}`);
+  }
+}
+
+export function buildFortnoxTool(def: FortnoxOpDef): ToolDef {
   const input: Record<string, z.ZodType> = {
     companyId: z
       .string()
       .optional()
-      .describe("Bokio company id (from list_companies). Optional when exactly one company is connected."),
+      .describe(
+        "Fortnox company id (the DatabaseNumber from list_companies). Optional when exactly one Fortnox company is connected.",
+      ),
   };
   for (const param of pathParamNames(def.path)) {
     input[param] = z.string().describe(`Path parameter ${param}`);
   }
-  if (def.list) {
-    input["page"] = z.number().int().min(1).optional().describe("Page number, starting at 1");
-    input["pageSize"] = z.number().int().min(1).max(100).optional().describe("Items per page (max 100)");
-    input["query"] = z.string().optional().describe("Free-text filter");
+  for (const param of def.query ?? []) {
+    input[param.name] = queryZod(param);
   }
-  for (const param of def.extraQuery ?? []) {
-    input[param] = z.string().optional().describe(`Query parameter ${param}`);
+  if (def.list) {
+    // Fortnox-wide pagination conventions (not declared per-op in the spec).
+    input["page"] = z.number().int().min(1).optional().describe("Page number, starting at 1");
+    input["limit"] = z.number().int().min(1).max(500).optional().describe("Items per page (max 500)");
+    input["offset"] = z.number().int().min(0).optional().describe("Result offset");
+    input["sortorder"] = z.enum(["ascending", "descending"]).optional().describe("Sort order");
   }
   if (def.body) {
-    input["body"] = z.record(z.string(), z.unknown()).describe(def.body);
+    input["body"] = z
+      .record(z.string(), z.unknown())
+      .describe(
+        'Request body. Fortnox wraps resources in a named root object, e.g. {"Invoice": {...}} — see the Fortnox API docs for the field shape.',
+      );
   }
   if (def.upload) {
     input["fileName"] = z.string().describe("File name, e.g. receipt.pdf");
     input["fileBase64"] = z.string().describe("File content, base64-encoded");
     input["mimeType"] = z.string().optional().describe("MIME type (default application/pdf)");
-    input["description"] = z.string().optional().describe("Description of the upload");
-    input["journalEntryId"] = z.string().optional().describe("Journal entry to attach the upload to");
   }
+
+  const queryNames = [
+    ...(def.query ?? []).map((q) => q.name),
+    ...(def.list ? ["page", "limit", "offset", "sortorder"] : []),
+  ];
 
   return {
     name: def.name,
@@ -84,20 +106,24 @@ export function buildBokioTool(def: BokioOpDef): ToolDef {
     readOnly: def.readOnly,
     destructive: def.destructive,
     handler: async (args, ctx) => {
-      const connection = await resolveConnection(ctx.userId, args["companyId"] as string | undefined, "bokio");
-      const client = createBokioClient(connection);
+      const connection = await resolveConnection(
+        ctx.userId,
+        args["companyId"] as string | undefined,
+        "fortnox",
+      );
+      const client = createFortnoxClient(connection);
 
-      const pathParams: Record<string, unknown> = { companyId: connection.tenantId };
+      const pathParams: Record<string, unknown> = {};
       for (const param of pathParamNames(def.path)) pathParams[param] = args[param];
 
       const query: Record<string, unknown> = {};
-      if (def.list) {
-        for (const k of ["page", "pageSize", "query"]) if (args[k] !== undefined) query[k] = args[k];
-      }
-      for (const k of def.extraQuery ?? []) if (args[k] !== undefined) query[k] = args[k];
+      for (const k of queryNames) if (args[k] !== undefined) query[k] = args[k];
 
       const requestOptions: Record<string, unknown> = {
-        params: { path: pathParams, ...(Object.keys(query).length ? { query } : {}) },
+        params: {
+          ...(Object.keys(pathParams).length ? { path: pathParams } : {}),
+          ...(Object.keys(query).length ? { query } : {}),
+        },
       };
       if (def.body) requestOptions["body"] = args["body"];
       if (def.upload) {
@@ -111,15 +137,13 @@ export function buildBokioTool(def: BokioOpDef): ToolDef {
           new Blob([bytes], { type: String(args["mimeType"] ?? "application/pdf") }),
           String(args["fileName"]),
         );
-        if (args["description"]) form.set("description", String(args["description"]));
-        if (args["journalEntryId"]) form.set("journalEntryId", String(args["journalEntryId"]));
         requestOptions["body"] = form;
         requestOptions["bodySerializer"] = (b: FormData) => b;
       }
       if (def.binary) requestOptions["parseAs"] = "arrayBuffer";
 
-      // Path validity vs. method is enforced at definition time by `op()`;
-      // the dynamic dispatch itself can't stay statically typed.
+      // Path validity vs. method is enforced at definition time by the generated
+      // FortnoxOpDef literals; the dynamic dispatch itself can't stay statically typed.
       const caller = client[def.method.toUpperCase() as "GET"] as (
         p: string,
         o: unknown,
@@ -127,9 +151,8 @@ export function buildBokioTool(def: BokioOpDef): ToolDef {
       const result = await caller(def.path, requestOptions);
 
       if (!result.response.ok) {
-        const { formatBokioError } = await import("../../bokio/client.js");
         return errorResult(
-          formatBokioError(result.response.status, result.error as never),
+          formatFortnoxError(result.response.status, result.error as FortnoxErrorBody | undefined),
         );
       }
 
@@ -141,12 +164,13 @@ export function buildBokioTool(def: BokioOpDef): ToolDef {
           );
         }
         const mimeType = result.response.headers.get("content-type") ?? "application/octet-stream";
+        const resolvedPath = def.path.replace(PATH_PARAM_RE, (_, name) => String(args[name] ?? ""));
         return {
           content: [
             {
               type: "resource",
               resource: {
-                uri: `bokio://${connection.tenantId}${def.path.replace("/companies/{companyId}", "")}`,
+                uri: `fortnox://${connection.tenantId}${resolvedPath}`,
                 mimeType,
                 blob: buf.toString("base64"),
               },

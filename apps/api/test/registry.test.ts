@@ -54,6 +54,33 @@ describe("registerTools write toggle", () => {
   });
 });
 
+describe("registerTools per-provider write toggle", () => {
+  const providerDefs: ToolDef[] = [
+    { ...defs[0]!, name: "bokio_read" },
+    { ...defs[1]!, name: "bokio_write" },
+    { ...defs[0]!, name: "fortnox_read" },
+    { ...defs[1]!, name: "fortnox_write" },
+  ];
+
+  it("gates bokio and fortnox writes independently", () => {
+    vi.spyOn(config, "BOKIO_ALLOW_WRITES", "get").mockReturnValue(true as never);
+    vi.spyOn(config, "FORTNOX_ALLOW_WRITES", "get").mockReturnValue(false as never);
+    const server = fakeServer();
+    registerTools(server, { userId: "u1" }, providerDefs);
+    const names = server.registerTool.mock.calls.map((c) => c[0]);
+    expect(names).toEqual(["bokio_read", "bokio_write", "fortnox_read"]);
+  });
+
+  it("gates fortnox writes on FORTNOX_ALLOW_WRITES alone", () => {
+    vi.spyOn(config, "BOKIO_ALLOW_WRITES", "get").mockReturnValue(false as never);
+    vi.spyOn(config, "FORTNOX_ALLOW_WRITES", "get").mockReturnValue(true as never);
+    const server = fakeServer();
+    registerTools(server, { userId: "u1" }, providerDefs);
+    const names = server.registerTool.mock.calls.map((c) => c[0]);
+    expect(names).toEqual(["bokio_read", "fortnox_read", "fortnox_write"]);
+  });
+});
+
 describe("bokio tool set", () => {
   it("covers all 85 spec operations and every tool name is unique", async () => {
     const { bokioOpDefs, bokioTools } = await import("../src/tools/bokio/index.js");

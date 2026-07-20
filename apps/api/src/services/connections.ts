@@ -18,14 +18,18 @@ export async function activeConnectionCount(userId: string) {
 // Seat check shared by both connect paths: adding a *new* company needs a spare
 // seat; re-connecting one already held (new OAuth grant, refreshed token) does
 // not. Returns the entitlement so each caller can format its own response.
-export async function connectSeatCheck(userId: string, tenantId: string) {
+export async function connectSeatCheck(
+  userId: string,
+  provider: "bokio" | "fortnox",
+  tenantId: string,
+) {
   const [existing] = await db
     .select({ id: accountingConnection.id })
     .from(accountingConnection)
     .where(
       and(
         eq(accountingConnection.userId, userId),
-        eq(accountingConnection.provider, "bokio"),
+        eq(accountingConnection.provider, provider),
         eq(accountingConnection.tenantId, tenantId),
       ),
     );
@@ -52,6 +56,7 @@ export async function fetchCompanyName(tenantId: string, accessToken: string): P
 
 export interface ConnectionInput {
   userId: string;
+  provider: "bokio" | "fortnox";
   authType: "oauth" | "integration_token";
   tenantId: string;
   externalConnectionId: string | null;
@@ -65,7 +70,7 @@ export interface ConnectionInput {
 export async function upsertConnection(input: ConnectionInput) {
   const values = {
     userId: input.userId,
-    provider: "bokio" as const,
+    provider: input.provider,
     authType: input.authType,
     tenantId: input.tenantId,
     externalConnectionId: input.externalConnectionId,
@@ -108,7 +113,7 @@ export async function connectViaToken(
     };
   }
 
-  const entitled = await connectSeatCheck(userId, companyId);
+  const entitled = await connectSeatCheck(userId, "bokio", companyId);
   if (!entitled.ok) {
     return { ok: false, error: entitled.reason, message: entitled.message, httpStatus: 402 };
   }
@@ -134,6 +139,7 @@ export async function connectViaToken(
 
   await upsertConnection({
     userId,
+    provider: "bokio",
     authType: "integration_token",
     tenantId: companyId,
     externalConnectionId: null,

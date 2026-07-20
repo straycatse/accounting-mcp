@@ -75,7 +75,7 @@ connectBokio.get("/connect/bokio/callback", async (c) => {
 
   const tokens = await exchangeAuthorizationCode(code, redirectUri);
 
-  const entitled = await connectSeatCheck(user.id, tokens.tenant_id);
+  const entitled = await connectSeatCheck(user.id, "bokio", tokens.tenant_id);
   if (!entitled.ok) {
     return c.redirect(
       webPage(`/dashboard?billing=${entitled.reason === "seats_exceeded" ? "seats" : "required"}`),
@@ -86,6 +86,7 @@ connectBokio.get("/connect/bokio/callback", async (c) => {
 
   await upsertConnection({
     userId: user.id,
+    provider: "bokio",
     authType: "oauth",
     tenantId: tokens.tenant_id,
     externalConnectionId: tokens.connection_id ?? null,
