@@ -54,8 +54,10 @@ const envSchema = z.object({
   // URL: tools/fortnox/index.ts registers only ops whose scope is listed here,
   // so this decides the tool surface too. Widening it requires ticking the
   // matching permission in the apps.fortnox.se portal. Deliberately omitted:
-  // asset, salary, timereporting, warehouse, noxfinansinvoice (paid add-on
+  // assets, salary, timereporting, warehouse, noxfinansinvoice (paid add-on
   // modules — requesting them imposes license requirements on customers).
+  // Fortnox rejects the whole authorize request with invalid_scope if any one
+  // scope here isn't enabled for the integration, and doesn't say which.
   FORTNOX_SCOPES: z
     .string()
     .default(

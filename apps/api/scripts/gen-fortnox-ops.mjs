@@ -15,7 +15,11 @@ const EXPECTED_COUNT = 372;
 // template), so the OAuth scope each endpoint needs is mapped by tag here. Tags
 // are stable across spec revisions; paths are not. Every tag must be mapped —
 // an unmapped one fails the build rather than silently emitting a tool nobody
-// can call. Scope slugs match the checkboxes in the apps.fortnox.se portal.
+// can call. Slugs come from fortnox.se/developer/guides-and-good-to-know/scopes
+// — note "assets" is plural while most others are singular.
+// UNVERIFIED: "warehouse" (Lager/Lagerdokument) isn't in that scope list; it's
+// only a guess at the slug for the separate /api/warehouse/* module. Confirm
+// with scripts/probe-fortnox-scopes.mjs before adding it to FORTNOX_SCOPES.
 const TAG_SCOPES = {
   "fileattachments_Attachment": "connectfile",
   "fortnox_AbsenceTransactions": "salary",
@@ -26,9 +30,9 @@ const TAG_SCOPES = {
   "fortnox_ArticleUrlConnection": "article",
   "fortnox_ArticleUrlConnections": "article",
   "fortnox_Articles": "article",
-  "fortnox_AssetFileConnection": "asset",
-  "fortnox_AssetTypes": "asset",
-  "fortnox_Assets": "asset",
+  "fortnox_AssetFileConnection": "assets",
+  "fortnox_AssetTypes": "assets",
+  "fortnox_Assets": "assets",
   "fortnox_AttendanceTransactions": "salary",
   "fortnox_CompanyInformation": "companyinformation",
   "fortnox_CompanySettings": "settings",

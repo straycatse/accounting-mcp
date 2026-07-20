@@ -40,7 +40,7 @@ describe("fortnox generated tool set", () => {
     // Modules we deliberately don't request — they need paid Fortnox add-ons.
     const dropped = new Set(fortnoxOpDefs.filter((d) => !granted.has(d.scope)).map((d) => d.scope));
     expect([...dropped].sort()).toEqual([
-      "asset",
+      "assets",
       "noxfinansinvoice",
       "profile",
       "salary",
