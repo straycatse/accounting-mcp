@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Building2, Trash2 } from "lucide-react";
 import { useTRPC } from "@/lib/trpc";
+import { providerMeta } from "@/lib/providers";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import {
   AlertDialog,
@@ -77,6 +78,9 @@ export function CompaniesList() {
                     {conn.companyName ?? conn.tenantId}
                   </p>
                   <div className="mt-1 flex flex-wrap gap-1.5">
+                    <Badge className={providerMeta(conn.provider).badgeClass}>
+                      {providerMeta(conn.provider).label}
+                    </Badge>
                     <Badge variant="secondary">
                       {conn.authType === "integration_token" ? "private token" : "oauth"}
                     </Badge>
