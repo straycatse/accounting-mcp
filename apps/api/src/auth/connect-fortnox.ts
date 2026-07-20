@@ -4,6 +4,7 @@ import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { auth } from "./auth.js";
 import { checkEntitlement } from "../billing/entitlement.js";
 import { config } from "../config.js";
+import { buildAuthorizeUrl } from "../lib/authorize-url.js";
 import { exchangeAuthorizationCode } from "../fortnox/oauth.js";
 import { fetchFortnoxCompanyInfo } from "../fortnox/company-info.js";
 import { fortnoxSettings } from "../fortnox/settings.js";
@@ -47,16 +48,18 @@ connectFortnox.get("/connect/fortnox", async (c) => {
     path: "/connect",
   });
 
-  const url = new URL(`${fortnoxSettings.authBaseUrl}/auth`);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", fortnoxSettings.clientId);
-  url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("scope", config.FORTNOX_SCOPES);
-  url.searchParams.set("state", state);
-  // Without access_type=offline Fortnox issues no refresh token and the
-  // connection dies when the ~1h access token expires.
-  url.searchParams.set("access_type", "offline");
-  return c.redirect(url.toString());
+  const url = buildAuthorizeUrl(`${fortnoxSettings.authBaseUrl}/auth`, {
+    response_type: "code",
+    client_id: fortnoxSettings.clientId,
+    redirect_uri: redirectUri,
+    // Must be %20-delimited, not "+" — see buildAuthorizeUrl.
+    scope: config.FORTNOX_SCOPES,
+    state,
+    // Without access_type=offline Fortnox issues no refresh token and the
+    // connection dies when the ~1h access token expires.
+    access_type: "offline",
+  });
+  return c.redirect(url);
 });
 
 connectFortnox.get("/connect/fortnox/callback", async (c) => {

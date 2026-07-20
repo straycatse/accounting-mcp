@@ -4,6 +4,7 @@ import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { auth } from "./auth.js";
 import { checkEntitlement } from "../billing/entitlement.js";
 import { config } from "../config.js";
+import { buildAuthorizeUrl } from "../lib/authorize-url.js";
 import { exchangeAuthorizationCode } from "../bokio/oauth.js";
 import { bokioSettings } from "../bokio/settings.js";
 import {
@@ -51,13 +52,15 @@ connectBokio.get("/connect/bokio", async (c) => {
     path: "/connect",
   });
 
-  const url = new URL(`${bokioSettings.authBaseUrl}/authorize`);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("client_id", bokioSettings.clientId);
-  url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("scope", config.BOKIO_SCOPES);
-  url.searchParams.set("state", state);
-  return c.redirect(url.toString());
+  const url = buildAuthorizeUrl(`${bokioSettings.authBaseUrl}/authorize`, {
+    response_type: "code",
+    client_id: bokioSettings.clientId,
+    redirect_uri: redirectUri,
+    // Must be %20-delimited, not "+" — see buildAuthorizeUrl.
+    scope: config.BOKIO_SCOPES,
+    state,
+  });
+  return c.redirect(url);
 });
 
 connectBokio.get("/connect/bokio/callback", async (c) => {
