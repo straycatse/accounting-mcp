@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { ExternalLink } from "lucide-react";
 import { useTRPC } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { Button } from "@/components/ui/button";
  * token) reflects the same state; previously only the OAuth buttons did.
  */
 export function useConnectGate() {
+  const t = useTranslations("connect.gate");
   const trpc = useTRPC();
   const billing = useQuery(trpc.billing.get.queryOptions());
   const b = billing.data;
@@ -19,8 +21,8 @@ export function useConnectGate() {
   const hint =
     b && !b.canConnect
       ? b.subscriptionStatus
-        ? `All ${b.seats} ${b.seats === 1 ? "seat is" : "seats are"} in use — add a company to your subscription to connect another.`
-        : "Start your free trial to connect a company."
+        ? t("seats", { seats: b.seats ?? 1 })
+        : t("trial")
       : "";
   return { canConnect, hint };
 }

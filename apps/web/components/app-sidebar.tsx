@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Building2, Landmark, LayoutDashboard, Plug } from "lucide-react";
 import { NavUser } from "@/components/nav-user";
 import {
@@ -17,12 +18,13 @@ import {
 } from "@/components/ui/sidebar";
 
 const navItems = [
-  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { title: "Companies", href: "/companies", icon: Building2 },
-  { title: "AI Connectors", href: "/connectors", icon: Plug },
-];
+  { key: "dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { key: "companies", href: "/companies", icon: Building2 },
+  { key: "connectors", href: "/connectors", icon: Plug },
+] as const;
 
 export function AppSidebar() {
+  const t = useTranslations("nav");
   const pathname = usePathname();
 
   return (
@@ -50,10 +52,14 @@ export function AppSidebar() {
             <SidebarMenu>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.title}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.href}
+                    tooltip={t(item.key)}
+                  >
                     <Link href={item.href}>
                       <item.icon />
-                      <span>{item.title}</span>
+                      <span>{t(item.key)}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

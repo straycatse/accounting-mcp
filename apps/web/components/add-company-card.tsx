@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ConnectBokioPanel } from "@/components/connect-bokio-panel";
 import { ConnectFortnoxPanel } from "@/components/connect-fortnox-panel";
 import { PROVIDERS, type ProviderId } from "@/lib/providers";
@@ -23,13 +24,13 @@ const PANELS: Record<ProviderId, React.ComponentType> = {
 };
 
 export function AddCompanyCard() {
+  const t = useTranslations("connect");
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add a company</CardTitle>
-        <CardDescription>
-          Pick your accounting provider. Each connection is scoped to a single company.
-        </CardDescription>
+        <CardTitle>{t("addTitle")}</CardTitle>
+        <CardDescription>{t("addDescription")}</CardDescription>
       </CardHeader>
       <CardContent>
         <Tabs defaultValue={ORDER[0]}>

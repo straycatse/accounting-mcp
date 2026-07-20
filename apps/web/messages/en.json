@@ -1,0 +1,156 @@
+{
+  "metadata": {
+    "title": "accounting-mcp",
+    "description": "Connect your accounting software to AI assistants via MCP."
+  },
+  "common": {
+    "loading": "Loading…",
+    "copy": "Copy",
+    "copied": "Copied",
+    "cancel": "Cancel",
+    "language": "Language",
+    "terms": "Terms",
+    "privacy": "Privacy"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "companies": "Companies",
+    "connectors": "AI Connectors",
+    "signedIn": "Signed in",
+    "signOut": "Sign out"
+  },
+  "signIn": {
+    "signIn": "Sign in",
+    "signUp": "Sign up",
+    "description": "Continue to authorize access to your accounting data.",
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "toSignUp": "No account? Sign up",
+    "toSignIn": "Have an account? Sign in",
+    "failed": "Authentication failed"
+  },
+  "consent": {
+    "title": "Authorize access",
+    "description": "Application <client></client> is requesting access with scopes:",
+    "defaultScopes": "(default)",
+    "approve": "Approve",
+    "deny": "Deny",
+    "failed": "Consent failed",
+    "failedWithStatus": "{message} (HTTP {status})"
+  },
+  "dashboard": {
+    "companiesTitle": "Companies",
+    "companiesNone": "No companies connected yet.",
+    "companiesCount": "{count, plural, one {# company connected.} other {# companies connected.}}",
+    "manageCompanies": "Manage companies",
+    "connectorsTitle": "AI Connectors",
+    "connectorsDescription": "Add this server to Claude, ChatGPT, Perplexity, or Gemini as an MCP connector.",
+    "connectorsCta": "Set up your assistant"
+  },
+  "companies": {
+    "title": "Connected companies",
+    "description": "Companies your AI assistant can access.",
+    "empty": "None yet.",
+    "remove": "Remove",
+    "removeTitle": "Remove {company}?",
+    "removeDescription": "Your AI assistant loses access to this company and the stored credentials are deleted. You can reconnect it later.",
+    "authType": {
+      "oauth": "oauth",
+      "integration_token": "private token"
+    },
+    "status": {
+      "active": "active",
+      "revoked": "revoked",
+      "refresh_failed": "needs reconnect"
+    }
+  },
+  "connect": {
+    "addTitle": "Add a company",
+    "addDescription": "Pick your accounting provider. Each connection is scoped to a single company.",
+    "oauth": "OAuth",
+    "gate": {
+      "trial": "Start your free trial to connect a company.",
+      "seats": "{seats, plural, one {All # seat is in use} other {All # seats are in use}} — add a company to your subscription to connect another."
+    },
+    "fortnox": {
+      "description": "Each authorization connects one Fortnox company.",
+      "oauthDescription": "You'll be sent to Fortnox's own consent screen to approve access, then returned here.",
+      "connect": "Connect a Fortnox company"
+    },
+    "bokio": {
+      "description": "Two ways in. Until our public Bokio app clears marketplace review, a private integration token is the path that works today.",
+      "oauthBadge": "Pending marketplace approval",
+      "oauthDescription": "Authorize in Bokio's own consent screen. Requires our public Bokio app.",
+      "connect": "Connect a Bokio company",
+      "tokenTitle": "Private integration token",
+      "tokenDescription": "Works today with your own company — no marketplace review. In Bokio: <em>Settings → API Tokens → Create Private Integration</em>, then paste the token and your company ID (the GUID in your Bokio URL).",
+      "tokenLabel": "Integration token",
+      "companyIdLabel": "Company ID",
+      "submit": "Connect with token"
+    }
+  },
+  "connectors": {
+    "title": "Connect your AI assistant",
+    "description": "Add this server as a custom connector (MCP) — sign-in happens in the browser when the assistant first connects:",
+    "claudeDescription": "Settings → Connectors → <em>Add custom connector</em>, paste the MCP URL above.",
+    "claudeButton": "Open Claude settings",
+    "claudeCode": "Claude Code:",
+    "chatgptDescription": "Requires developer mode (Pro/Team/Enterprise): Settings → Connectors → <em>Advanced settings</em> → enable <em>Developer mode</em>, then <em>Create</em> a connector with the MCP URL above.",
+    "chatgptButton": "Open ChatGPT settings",
+    "perplexityDescription": "Settings → Connectors → <em>Add connector</em> → Remote, paste the MCP URL above and choose OAuth authentication.",
+    "perplexityButton": "Open Perplexity guide",
+    "geminiDescription": "The Gemini web app doesn't support custom MCP connectors yet — use Gemini CLI:"
+  },
+  "billing": {
+    "title": "Subscription",
+    "trialBadge": "{days, plural, one {Trial — # day left} other {Trial — # days left}}",
+    "complimentary": "Complimentary account — no subscription needed.",
+    "trialing": "{seats, plural, one {Add a payment method before the trial ends to continue with # company; otherwise the subscription simply ends.} other {Add a payment method before the trial ends to continue with # companies; otherwise the subscription simply ends.}}",
+    "subscribed": "{seats, plural, one {Subscribed — # company (status: {status}).} other {Subscribed — # companies (status: {status}).}}",
+    "none": "Start with a free trial — no card required. Add a payment method before it ends to keep your companies connected.",
+    "startTrial": "Start free trial",
+    "addCompany": "Add a company ({total} total)",
+    "manage": "Manage billing",
+    "failed": "Billing request failed"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "removeFailed": "Could not remove: {message}",
+    "connect": {
+      "missingFields": "Enter both the integration token and the company ID.",
+      "tokenRejected": "Bokio rejected that token and company ID (HTTP {status}). Check both and try again.",
+      "providerUnreachable": "Could not reach Bokio to validate the token.",
+      "noSuchConnection": "That company is already gone — refresh the page.",
+      "oauthState": "That connection attempt expired or was tampered with. Please try again from here.",
+      "oauthDenied": "Your accounting provider did not approve the connection. Please try again.",
+      "companyInfo": "The connection was approved, but we couldn't read the company information. Please try again."
+    },
+    "billing": {
+      "required": "Start your free trial before connecting a company.",
+      "seats": "That company would need another seat — add one to your subscription first.",
+      "subscriptionRequired": "This service requires a subscription — it starts with a {trialDays}-day free trial.",
+      "seatsExceeded": "{seats, plural, one {Your subscription covers # company} other {Your subscription covers # companies}}, but {required} would be in use. Add a company to your subscription, or disconnect one."
+    }
+  },
+  "legal": {
+    "terms": {
+      "metaTitle": "Terms of service — accounting-mcp",
+      "title": "Terms of service",
+      "intro": "accounting-mcp is operated by Stray Cat AB, Sweden.",
+      "scope": "The service lets you connect your own accounting software (currently Bokio and Fortnox) to AI assistants via the Model Context Protocol. You act on your own accounting data, on your own instruction, under your own agreement with your accounting provider.",
+      "payment": "After a free trial, continued use requires a paid subscription (price shown at checkout, per connected company, excl. VAT). You can cancel any time; access remains until the end of the paid period.",
+      "liability": "The service is provided as-is. Always review AI-initiated bookkeeping changes; you are responsible for the correctness of your accounts.",
+      "support": "Support: <mail></mail>"
+    },
+    "privacy": {
+      "metaTitle": "Privacy policy — accounting-mcp",
+      "title": "Privacy policy",
+      "storage": "We store your email, password hash, and the OAuth tokens needed to reach your accounting provider. Provider tokens are encrypted at rest (AES-256-GCM).",
+      "dataUse": "Accounting data is fetched from your provider on demand when you (via your AI assistant) request it, and passed through to your assistant. We do not store, resell, or use your accounting data for any other purpose, including training.",
+      "audit": "A minimal audit log of tool activity (tool name, timestamp, success) is kept for security and support.",
+      "payments": "Payments are processed by Stripe; we never see your card details.",
+      "deletion": "Disconnecting a company or deleting your account removes the stored tokens. Data controller: Stray Cat AB — contact <mail></mail> for access or deletion requests (GDPR)."
+    }
+  }
+}

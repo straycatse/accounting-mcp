@@ -1,0 +1,156 @@
+{
+  "metadata": {
+    "title": "accounting-mcp",
+    "description": "Koppla ditt bokföringsprogram till AI-assistenter via MCP."
+  },
+  "common": {
+    "loading": "Laddar…",
+    "copy": "Kopiera",
+    "copied": "Kopierat",
+    "cancel": "Avbryt",
+    "language": "Språk",
+    "terms": "Villkor",
+    "privacy": "Integritet"
+  },
+  "nav": {
+    "dashboard": "Översikt",
+    "companies": "Företag",
+    "connectors": "AI-kopplingar",
+    "signedIn": "Inloggad",
+    "signOut": "Logga ut"
+  },
+  "signIn": {
+    "signIn": "Logga in",
+    "signUp": "Skapa konto",
+    "description": "Fortsätt för att ge åtkomst till din bokföringsdata.",
+    "name": "Namn",
+    "email": "E-post",
+    "password": "Lösenord",
+    "toSignUp": "Inget konto? Skapa ett",
+    "toSignIn": "Har du redan ett konto? Logga in",
+    "failed": "Inloggningen misslyckades"
+  },
+  "consent": {
+    "title": "Godkänn åtkomst",
+    "description": "Applikationen <client></client> begär åtkomst med behörigheterna:",
+    "defaultScopes": "(standard)",
+    "approve": "Godkänn",
+    "deny": "Neka",
+    "failed": "Godkännandet misslyckades",
+    "failedWithStatus": "{message} (HTTP {status})"
+  },
+  "dashboard": {
+    "companiesTitle": "Företag",
+    "companiesNone": "Inga företag anslutna ännu.",
+    "companiesCount": "{count, plural, one {# företag anslutet.} other {# företag anslutna.}}",
+    "manageCompanies": "Hantera företag",
+    "connectorsTitle": "AI-kopplingar",
+    "connectorsDescription": "Lägg till den här servern i Claude, ChatGPT, Perplexity eller Gemini som en MCP-koppling.",
+    "connectorsCta": "Ställ in din assistent"
+  },
+  "companies": {
+    "title": "Anslutna företag",
+    "description": "Företag som din AI-assistent har åtkomst till.",
+    "empty": "Inga ännu.",
+    "remove": "Ta bort",
+    "removeTitle": "Ta bort {company}?",
+    "removeDescription": "Din AI-assistent förlorar åtkomsten till företaget och de sparade inloggningsuppgifterna raderas. Du kan ansluta det igen senare.",
+    "authType": {
+      "oauth": "oauth",
+      "integration_token": "privat token"
+    },
+    "status": {
+      "active": "aktiv",
+      "revoked": "återkallad",
+      "refresh_failed": "behöver anslutas om"
+    }
+  },
+  "connect": {
+    "addTitle": "Lägg till ett företag",
+    "addDescription": "Välj ditt bokföringsprogram. Varje anslutning gäller ett enskilt företag.",
+    "oauth": "OAuth",
+    "gate": {
+      "trial": "Starta din gratis provperiod för att ansluta ett företag.",
+      "seats": "{seats, plural, one {Alla # plats används} other {Alla # platser används}} — lägg till ett företag i din prenumeration för att ansluta fler."
+    },
+    "fortnox": {
+      "description": "Varje godkännande ansluter ett Fortnox-företag.",
+      "oauthDescription": "Du skickas till Fortnox egen godkännandesida för att ge åtkomst, och kommer sedan tillbaka hit.",
+      "connect": "Anslut ett Fortnox-företag"
+    },
+    "bokio": {
+      "description": "Två vägar in. Tills vår publika Bokio-app har godkänts av marketplace är en privat integrationstoken vägen som fungerar idag.",
+      "oauthBadge": "Väntar på marketplace-godkännande",
+      "oauthDescription": "Godkänn i Bokios egen godkännandesida. Kräver vår publika Bokio-app.",
+      "connect": "Anslut ett Bokio-företag",
+      "tokenTitle": "Privat integrationstoken",
+      "tokenDescription": "Fungerar idag med ditt eget företag — utan marketplace-granskning. I Bokio: <em>Inställningar → API-tokens → Skapa privat integration</em>. Klistra sedan in token och ditt företags-ID (GUID:t i din Bokio-adress).",
+      "tokenLabel": "Integrationstoken",
+      "companyIdLabel": "Företags-ID",
+      "submit": "Anslut med token"
+    }
+  },
+  "connectors": {
+    "title": "Koppla din AI-assistent",
+    "description": "Lägg till den här servern som en egen koppling (MCP) — inloggningen sker i webbläsaren när assistenten ansluter första gången:",
+    "claudeDescription": "Inställningar → Kopplingar → <em>Lägg till egen koppling</em>, klistra in MCP-adressen ovan.",
+    "claudeButton": "Öppna Claudes inställningar",
+    "claudeCode": "Claude Code:",
+    "chatgptDescription": "Kräver utvecklarläge (Pro/Team/Enterprise): Inställningar → Kopplingar → <em>Avancerade inställningar</em> → aktivera <em>Utvecklarläge</em>, och <em>skapa</em> sedan en koppling med MCP-adressen ovan.",
+    "chatgptButton": "Öppna ChatGPT:s inställningar",
+    "perplexityDescription": "Inställningar → Kopplingar → <em>Lägg till koppling</em> → Remote, klistra in MCP-adressen ovan och välj OAuth-autentisering.",
+    "perplexityButton": "Öppna Perplexitys guide",
+    "geminiDescription": "Gemini-webbappen stöder inte egna MCP-kopplingar ännu — använd Gemini CLI:"
+  },
+  "billing": {
+    "title": "Prenumeration",
+    "trialBadge": "{days, plural, one {Provperiod — # dag kvar} other {Provperiod — # dagar kvar}}",
+    "complimentary": "Kostnadsfritt konto — ingen prenumeration behövs.",
+    "trialing": "{seats, plural, one {Lägg till en betalningsmetod innan provperioden tar slut för att fortsätta med # företag, annars avslutas prenumerationen.} other {Lägg till en betalningsmetod innan provperioden tar slut för att fortsätta med # företag, annars avslutas prenumerationen.}}",
+    "subscribed": "{seats, plural, one {Prenumererar — # företag (status: {status}).} other {Prenumererar — # företag (status: {status}).}}",
+    "none": "Börja med en gratis provperiod — inget kort krävs. Lägg till en betalningsmetod innan den tar slut för att behålla dina anslutna företag.",
+    "startTrial": "Starta gratis provperiod",
+    "addCompany": "Lägg till ett företag ({total} totalt)",
+    "manage": "Hantera betalning",
+    "failed": "Betalningsförfrågan misslyckades"
+  },
+  "errors": {
+    "generic": "Något gick fel. Försök igen.",
+    "removeFailed": "Kunde inte ta bort: {message}",
+    "connect": {
+      "missingFields": "Ange både integrationstoken och företags-ID.",
+      "tokenRejected": "Bokio nekade den token och det företags-ID:t (HTTP {status}). Kontrollera båda och försök igen.",
+      "providerUnreachable": "Kunde inte nå Bokio för att validera token.",
+      "noSuchConnection": "Företaget är redan borttaget — ladda om sidan.",
+      "oauthState": "Anslutningsförsöket har gått ut eller manipulerats. Försök igen härifrån.",
+      "oauthDenied": "Din bokföringsleverantör godkände inte anslutningen. Försök igen.",
+      "companyInfo": "Anslutningen godkändes, men vi kunde inte läsa företagsinformationen. Försök igen."
+    },
+    "billing": {
+      "required": "Starta din gratis provperiod innan du ansluter ett företag.",
+      "seats": "Det företaget skulle kräva ytterligare en plats — lägg till en i din prenumeration först.",
+      "subscriptionRequired": "Tjänsten kräver en prenumeration — den inleds med en {trialDays} dagars gratis provperiod.",
+      "seatsExceeded": "{seats, plural, one {Din prenumeration täcker # företag} other {Din prenumeration täcker # företag}}, men {required} skulle användas. Lägg till ett företag i din prenumeration, eller koppla från ett."
+    }
+  },
+  "legal": {
+    "terms": {
+      "metaTitle": "Användarvillkor — accounting-mcp",
+      "title": "Användarvillkor",
+      "intro": "accounting-mcp drivs av Stray Cat AB, Sverige.",
+      "scope": "Tjänsten låter dig koppla ditt eget bokföringsprogram (för närvarande Bokio och Fortnox) till AI-assistenter via Model Context Protocol. Du agerar på din egen bokföringsdata, på din egen instruktion, under ditt eget avtal med din bokföringsleverantör.",
+      "payment": "Efter en gratis provperiod krävs en betald prenumeration för fortsatt användning (pris visas i kassan, per anslutet företag, exkl. moms). Du kan säga upp när som helst; åtkomsten gäller perioden ut.",
+      "liability": "Tjänsten tillhandahålls i befintligt skick. Granska alltid bokföringsändringar som initierats av AI — du ansvarar själv för att din bokföring är korrekt.",
+      "support": "Support: <mail></mail>"
+    },
+    "privacy": {
+      "metaTitle": "Integritetspolicy — accounting-mcp",
+      "title": "Integritetspolicy",
+      "storage": "Vi lagrar din e-postadress, ditt lösenords hash och de OAuth-tokens som krävs för att nå din bokföringsleverantör. Leverantörens tokens krypteras i vila (AES-256-GCM).",
+      "dataUse": "Bokföringsdata hämtas från din leverantör vid behov när du (via din AI-assistent) begär det, och skickas vidare till din assistent. Vi lagrar, säljer eller använder aldrig din bokföringsdata för något annat ändamål, inklusive träning av modeller.",
+      "audit": "En minimal logg över verktygsanvändning (verktygets namn, tidpunkt, om det lyckades) sparas för säkerhet och support.",
+      "payments": "Betalningar hanteras av Stripe; vi ser aldrig dina kortuppgifter.",
+      "deletion": "När du kopplar från ett företag eller raderar ditt konto tas de sparade tokensen bort. Personuppgiftsansvarig: Stray Cat AB — kontakta <mail></mail> för registerutdrag eller radering (GDPR)."
+    }
+  }
+}

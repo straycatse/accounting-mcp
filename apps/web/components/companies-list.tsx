@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { AlertCircle, Building2, Trash2 } from "lucide-react";
 import { useTRPC } from "@/lib/trpc";
+import { useErrorMessage } from "@/lib/trpc-error";
 import { providerMeta } from "@/lib/providers";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import {
@@ -29,6 +31,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function CompaniesList() {
+  const t = useTranslations("companies");
+  const common = useTranslations("common");
+  const errors = useTranslations("errors");
+  const errorMessage = useErrorMessage();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const connections = useQuery(trpc.connections.list.queryOptions());
@@ -45,7 +51,7 @@ export function CompaniesList() {
         setRemoveError("");
         refresh();
       },
-      onError: (err) => setRemoveError(`Could not remove: ${err.message}`),
+      onError: (err) => setRemoveError(errors("removeFailed", { message: errorMessage(err) })),
     }),
   );
 
@@ -54,9 +60,9 @@ export function CompaniesList() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Building2 className="size-4" />
-          Connected companies
+          {t("title")}
         </CardTitle>
-        <CardDescription>Companies your AI assistant can access.</CardDescription>
+        <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         {removeError && (
@@ -68,7 +74,7 @@ export function CompaniesList() {
         {connections.isPending ? (
           <Skeleton className="h-12 w-full" />
         ) : !connections.data || connections.data.length === 0 ? (
-          <p className="text-sm text-muted-foreground">None yet.</p>
+          <p className="text-sm text-muted-foreground">{t("empty")}</p>
         ) : (
           <ul className="divide-y">
             {connections.data.map((conn) => (
@@ -81,11 +87,11 @@ export function CompaniesList() {
                     <Badge className={providerMeta(conn.provider).badgeClass}>
                       {providerMeta(conn.provider).label}
                     </Badge>
-                    <Badge variant="secondary">
-                      {conn.authType === "integration_token" ? "private token" : "oauth"}
-                    </Badge>
+                    <Badge variant="secondary">{t(`authType.${conn.authType}`)}</Badge>
                     <Badge variant={conn.status === "active" ? "outline" : "secondary"}>
-                      {conn.status}
+                      {/* Tolerate a status the catalog doesn't know yet, the way
+                          providerMeta() tolerates an unknown provider slug. */}
+                      {t.has(`status.${conn.status}`) ? t(`status.${conn.status}`) : conn.status}
                     </Badge>
                   </div>
                 </div>
@@ -93,26 +99,23 @@ export function CompaniesList() {
                   <AlertDialogTrigger asChild>
                     <Button variant="ghost" size="sm" disabled={disconnect.isPending}>
                       <Trash2 />
-                      Remove
+                      {t("remove")}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>
-                        Remove {conn.companyName ?? conn.tenantId}?
+                        {t("removeTitle", { company: conn.companyName ?? conn.tenantId })}
                       </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Your AI assistant loses access to this company and the stored credentials
-                        are deleted. You can reconnect it later.
-                      </AlertDialogDescription>
+                      <AlertDialogDescription>{t("removeDescription")}</AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>{common("cancel")}</AlertDialogCancel>
                       <AlertDialogAction
                         className="bg-destructive text-white hover:bg-destructive/90"
                         onClick={() => disconnect.mutate({ id: conn.id })}
                       >
-                        Remove
+                        {t("remove")}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

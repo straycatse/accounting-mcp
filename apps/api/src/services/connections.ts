@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { checkEntitlement, getBillingState } from "../billing/entitlement.js";
 import { db } from "../db/index.js";
 import { accountingConnection } from "../db/schema.js";
+import type { MessageKey } from "../lib/app-error.js";
 import { encryptToken } from "../lib/crypto.js";
 import { bokioSettings } from "../bokio/settings.js";
 
@@ -90,9 +91,11 @@ export async function upsertConnection(input: ConnectionInput) {
     });
 }
 
+// Failures are described by a message-catalog key, not prose: this result is
+// only ever rendered in the browser, where the reader's language is known.
 export type TokenConnectResult =
   | { ok: true; companyName: string | null; companyId: string }
-  | { ok: false; error: string; message: string; httpStatus: 400 | 402 | 502 };
+  | ({ ok: false; error: string; httpStatus: 400 | 402 | 502 } & MessageKey);
 
 // Connect a single company directly with a Bokio *private integration* token.
 // Validates the token + companyId against the live API (which also yields the
@@ -108,14 +111,20 @@ export async function connectViaToken(
     return {
       ok: false,
       error: "missing_fields",
-      message: "Both integrationToken and companyId are required.",
+      key: "connect.missingFields",
       httpStatus: 400,
     };
   }
 
   const entitled = await connectSeatCheck(userId, "bokio", companyId);
   if (!entitled.ok) {
-    return { ok: false, error: entitled.reason, message: entitled.message, httpStatus: 402 };
+    return {
+      ok: false,
+      error: entitled.reason,
+      key: entitled.key,
+      params: entitled.params,
+      httpStatus: 402,
+    };
   }
 
   let companyName: string | null = null;
@@ -127,14 +136,15 @@ export async function connectViaToken(
       return {
         ok: false,
         error: "invalid_token",
-        message: `Bokio rejected that token and company ID (HTTP ${res.status}). Check both and try again.`,
+        key: "connect.tokenRejected",
+        params: { status: res.status },
         httpStatus: 400,
       };
     }
     const info = (await res.json()) as { companyInformation?: { name?: string } };
     companyName = info.companyInformation?.name ?? null;
   } catch {
-    return { ok: false, error: "unreachable", message: "Could not reach Bokio to validate the token.", httpStatus: 502 };
+    return { ok: false, error: "unreachable", key: "connect.providerUnreachable", httpStatus: 502 };
   }
 
   await upsertConnection({

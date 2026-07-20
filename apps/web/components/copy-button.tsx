@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Check, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function CopyButton({ text }: { text: string }) {
+  const t = useTranslations("common");
   const [copied, setCopied] = useState(false);
   return (
     <Button
@@ -20,7 +22,7 @@ export function CopyButton({ text }: { text: string }) {
       }}
     >
       {copied ? <Check /> : <Copy />}
-      {copied ? "Copied" : "Copy"}
+      {copied ? t("copied") : t("copy")}
     </Button>
   );
 }

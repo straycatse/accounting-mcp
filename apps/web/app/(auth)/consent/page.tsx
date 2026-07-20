@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { AlertCircle, ShieldQuestion } from "lucide-react";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/card";
 
 function ConsentForm() {
+  const t = useTranslations("consent");
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,7 +46,10 @@ function ConsentForm() {
         window.location.href = target;
       } else {
         setError(
-          `${data.error_description ?? data.message ?? data.error ?? "Consent failed"} (HTTP ${res.status})`,
+          t("failedWithStatus", {
+            message: data.error_description ?? data.message ?? data.error ?? t("failed"),
+            status: res.status,
+          }),
         );
       }
     } finally {
@@ -57,17 +62,20 @@ function ConsentForm() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <ShieldQuestion className="size-4" />
-          Authorize access
+          {t("title")}
         </CardTitle>
         <CardDescription>
-          Application <code className="rounded bg-muted px-1 py-0.5 font-mono">{client}</code> is
-          requesting access with scopes:
+          {t.rich("description", {
+            client: () => (
+              <code className="rounded bg-muted px-1 py-0.5 font-mono">{client}</code>
+            ),
+          })}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-1.5">
           {scopes.length === 0 ? (
-            <span className="text-sm text-muted-foreground">(default)</span>
+            <span className="text-sm text-muted-foreground">{t("defaultScopes")}</span>
           ) : (
             scopes.map((s) => (
               <Badge key={s} variant="secondary" className="font-mono">
@@ -85,10 +93,10 @@ function ConsentForm() {
       </CardContent>
       <CardFooter className="gap-2">
         <Button onClick={() => respond(true)} disabled={busy}>
-          Approve
+          {t("approve")}
         </Button>
         <Button variant="outline" onClick={() => respond(false)} disabled={busy}>
-          Deny
+          {t("deny")}
         </Button>
       </CardFooter>
     </Card>

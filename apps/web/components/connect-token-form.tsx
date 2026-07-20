@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { AlertCircle } from "lucide-react";
 import { useTRPC } from "@/lib/trpc";
+import { useErrorMessage } from "@/lib/trpc-error";
 import { useConnectGate, ConnectGateHint } from "@/components/connect-provider";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,6 +17,9 @@ import { Label } from "@/components/ui/label";
  * inside the Bokio provider section rather than as a standalone card.
  */
 export function ConnectTokenForm() {
+  const t = useTranslations("connect.bokio");
+  const errors = useTranslations("errors");
+  const errorMessage = useErrorMessage();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const { canConnect } = useConnectGate();
@@ -36,13 +41,13 @@ export function ConnectTokenForm() {
         setPiError("");
         refresh();
       },
-      onError: (err) => setPiError(err.message),
+      onError: (err) => setPiError(errorMessage(err)),
     }),
   );
 
   function submit() {
     if (!piToken.trim() || !piCompany.trim()) {
-      setPiError("Enter both the integration token and the company ID.");
+      setPiError(errors("connect.missingFields"));
       return;
     }
     setPiError("");
@@ -58,7 +63,7 @@ export function ConnectTokenForm() {
         </Alert>
       )}
       <div className="grid gap-2">
-        <Label htmlFor="pi-token">Integration token</Label>
+        <Label htmlFor="pi-token">{t("tokenLabel")}</Label>
         <Input
           id="pi-token"
           type="password"
@@ -68,7 +73,7 @@ export function ConnectTokenForm() {
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="pi-company">Company ID</Label>
+        <Label htmlFor="pi-company">{t("companyIdLabel")}</Label>
         <Input
           id="pi-company"
           autoComplete="off"
@@ -79,7 +84,7 @@ export function ConnectTokenForm() {
       </div>
       <div className="space-y-2">
         <Button disabled={tokenConnect.isPending || !canConnect} onClick={submit}>
-          Connect with token
+          {t("submit")}
         </Button>
         <ConnectGateHint />
       </div>

@@ -19,6 +19,25 @@ const stripeClient = new Stripe(config.STRIPE_SECRET_KEY || "sk_test_placeholder
   apiVersion: "2026-06-24.dahlia",
 });
 
+// The web app keeps the reader's language in a NEXT_LOCALE cookie (there is no
+// locale in the URL), and its /api/auth/* rewrite forwards that cookie here — so
+// Checkout can be rendered in the same language as the page that opened it.
+// Swedish stays the default: this is a Swedish product with Swedish VAT.
+const CHECKOUT_LOCALES = ["sv", "en"] as const;
+
+function checkoutLocale(
+  request: Request | undefined,
+): Stripe.Checkout.SessionCreateParams.Locale {
+  const cookie = request?.headers.get("cookie") ?? "";
+  const value = cookie
+    .split(";")
+    .map((part) => part.trim().split("="))
+    .find(([name]) => name === "NEXT_LOCALE")?.[1];
+  return (CHECKOUT_LOCALES as readonly string[]).includes(value ?? "")
+    ? (value as Stripe.Checkout.SessionCreateParams.Locale)
+    : "sv";
+}
+
 export const auth = betterAuth({
   baseURL: config.BASE_URL,
   secret: config.BETTER_AUTH_SECRET,
@@ -71,13 +90,13 @@ export const auth = betterAuth({
         // Swedish moms / EU B2B reverse charge: let Stripe Tax compute VAT and
         // collect the buyer's VAT number. automatic_tax needs a customer
         // address, hence the required billing address + customer_update.
-        getCheckoutSessionParams: () => ({
+        getCheckoutSessionParams: (_data, request) => ({
           params: {
             automatic_tax: { enabled: true },
             tax_id_collection: { enabled: true },
             billing_address_collection: "required",
             customer_update: { address: "auto", name: "auto" },
-            locale: "sv",
+            locale: checkoutLocale(request),
             // Start the trial without a card. `if_required` still collects one
             // on any checkout that isn't a trial (e.g. subscribing after a
             // lapsed trial, or adding a company), so only the trial is free of
